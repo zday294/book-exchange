@@ -30,8 +30,10 @@ public class BookController {
               "amazonUrl: must be an https link to Amazon (amazon.com, amzn.to or a.co)",
               "wrappingPaper: must be a known wrapping paper"]}""";
     private static final String ERR_404 = "{\"error\": \"Exchange not found\", \"details\": []}";
-    private static final String ERR_409 =
+    private static final String ERR_409_CLOSED =
             "{\"error\": \"This exchange is closed and no longer accepts books\", \"details\": []}";
+    private static final String ERR_409_DUPLICATE =
+            "{\"error\": \"You have already submitted a book to this exchange\", \"details\": []}";
 
     private final BookService service;
 
@@ -41,7 +43,7 @@ public class BookController {
 
     @Operation(
             summary = "Submit a book to an exchange",
-            description = "Adds an unclaimed book to the exchange's pile. A cover image is looked up "
+            description = "Adds an unclaimed book to the exchange's pile. Each person may submit one book per exchange. A cover image is looked up "
                     + "in the background after the book is saved; a failed lookup never affects this call.")
     @ApiResponse(responseCode = "201", description = "Book submitted",
             headers = @Header(name = "Location", description = "URL of the new book",
@@ -54,9 +56,13 @@ public class BookController {
     @ApiResponse(responseCode = "404", description = "No exchange with that code",
             content = @Content(schema = @Schema(implementation = ApiError.class),
                     examples = @ExampleObject(value = ERR_404)))
-    @ApiResponse(responseCode = "409", description = "The exchange is closed and no longer accepts books",
+    @ApiResponse(responseCode = "409",
+            description = "The exchange is closed, or this person (name compared case-insensitively, "
+                    + "ignoring surrounding spaces) has already submitted a book to it. Nothing is saved.",
             content = @Content(schema = @Schema(implementation = ApiError.class),
-                    examples = @ExampleObject(value = ERR_409)))
+                    examples = {
+                            @ExampleObject(name = "Exchange closed", value = ERR_409_CLOSED),
+                            @ExampleObject(name = "Already submitted", value = ERR_409_DUPLICATE)}))
     @PostMapping
     public ResponseEntity<SubmittedBookResponse> submit(
             @Parameter(description = "Short shareable code of the exchange", example = "XMAS2026")

@@ -38,6 +38,7 @@ class SubmitBookTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void reset() {
+        jdbc.update("delete from book_submission");
         RecordingCoverLookup.CALLS.clear();
         RecordingCoverLookup.FAIL.set(false);
     }
@@ -91,9 +92,65 @@ class SubmitBookTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void samePersonMaySubmitMoreThanOneBook() throws Exception {
+    void samePersonCannotSubmitASecondBook() throws Exception {
         submit("XMAS2026", valid()).andExpect(status().isCreated());
+        RecordingCoverLookup.CALLS.clear();
+        long before = books.count();
+
+        Map<String, String> second = valid();
+        second.put("bookTitle", "Another Book");
+        submit("XMAS2026", second)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("You have already submitted a book to this exchange"));
+
+        assertThat(books.count()).isEqualTo(before);
+        assertThat(RecordingCoverLookup.CALLS).isEmpty();
+    }
+
+    @Test
+    void duplicateCheckIgnoresCaseAndSurroundingWhitespace() throws Exception {
         submit("XMAS2026", valid()).andExpect(status().isCreated());
+        Map<String, String> second = valid();
+        second.put("submitterName", "  zACH ");
+        submit("XMAS2026", second).andExpect(status().isConflict());
+    }
+
+    @Test
+    void sameNameMaySubmitToADifferentExchange() throws Exception {
+        exchanges.save(new Exchange("OTHEREX", "Other exchange"));
+        submit("XMAS2026", valid()).andExpect(status().isCreated());
+        submit("OTHEREX", valid()).andExpect(status().isCreated());
+    }
+
+    @Test
+    void simultaneousSubmissionsByTheSamePersonProduceOneCreatedAndOneConflict() throws Exception {
+        int threads = 8;
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        java.util.List<java.util.concurrent.Future<Integer>> results = new java.util.ArrayList<>();
+        Map<String, String> body = valid();
+        body.put("submitterName", "Racer");
+        for (int i = 0; i < threads; i++) {
+            results.add(pool.submit(() -> {
+                start.await();
+                return submit("XMAS2026", body).andReturn().getResponse().getStatus();
+            }));
+        }
+        start.countDown();
+        int created = 0;
+        int conflicts = 0;
+        for (var f : results) {
+            int status = f.get(30, java.util.concurrent.TimeUnit.SECONDS);
+            if (status == 201) created++;
+            else if (status == 409) conflicts++;
+        }
+        pool.shutdown();
+
+        assertThat(created).isEqualTo(1);
+        assertThat(conflicts).isEqualTo(threads - 1);
+        assertThat(jdbc.queryForObject(
+                "select count(*) from book_submission where submitter_name = 'Racer'", Integer.class))
+                .isEqualTo(1);
     }
 
     static Stream<Arguments> invalidBodies() {

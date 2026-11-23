@@ -35,14 +35,14 @@ class SchemaTest extends AbstractIntegrationTest {
     @Test
     void liquibaseRecordedEveryChangeset() {
         Integer applied = jdbc.queryForObject("SELECT count(*) FROM databasechangelog", Integer.class);
-        assertThat(applied).isEqualTo(5); // 001, 002, 003 (two), 004
+        assertThat(applied).isEqualTo(6); // 001, 002, 003 (two), 004, 005
     }
 
     @Test
     void aPersonCanClaimOnlyOneBookPerExchangeCaseInsensitively() {
         Exchange exchange = exchanges.save(new Exchange("ONECLAIM", "One claim"));
-        BookSubmission first = books.save(book(exchange, "First"));
-        BookSubmission second = books.save(book(exchange, "Second"));
+        BookSubmission first = books.save(book(exchange, "Zach", "First"));
+        BookSubmission second = books.save(book(exchange, "Zoe", "Second"));
 
         first.claim("Alex", Instant.now());
         books.saveAndFlush(first);
@@ -56,8 +56,8 @@ class SchemaTest extends AbstractIntegrationTest {
     void sameNameMayClaimInDifferentExchanges() {
         Exchange a = exchanges.save(new Exchange("EXCH-A", "A"));
         Exchange b = exchanges.save(new Exchange("EXCH-B", "B"));
-        BookSubmission inA = books.save(book(a, "In A"));
-        BookSubmission inB = books.save(book(b, "In B"));
+        BookSubmission inA = books.save(book(a, "Zach", "In A"));
+        BookSubmission inB = books.save(book(b, "Zach", "In B"));
 
         inA.claim("Alex", Instant.now());
         inB.claim("Alex", Instant.now());
@@ -69,14 +69,30 @@ class SchemaTest extends AbstractIntegrationTest {
     @Test
     void claimNameAndTimestampMustBeSetTogether() {
         Exchange exchange = exchanges.save(new Exchange("HALFCLAIM", "Half claim"));
-        BookSubmission b = books.save(book(exchange, "Half"));
+        BookSubmission b = books.save(book(exchange, "Zach", "Half"));
 
         b.claim("Alex", null);
         assertThatThrownBy(() -> books.saveAndFlush(b))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    private static BookSubmission book(Exchange exchange, String title) {
-        return new BookSubmission(exchange, "Zach", title, "https://www.amazon.com/dp/0547928221", "candy-cane");
+    @Test
+    void aPersonCanSubmitOnlyOneBookPerExchangeCaseInsensitively() {
+        Exchange exchange = exchanges.save(new Exchange("ONESUBMIT", "One submission"));
+        books.saveAndFlush(book(exchange, "Zach", "First"));
+
+        assertThatThrownBy(() -> books.saveAndFlush(book(exchange, "ZACH", "Second")))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void sameNameMaySubmitInDifferentExchanges() {
+        Exchange a = exchanges.save(new Exchange("SUB-A", "A"));
+        Exchange b = exchanges.save(new Exchange("SUB-B", "B"));
+        books.saveAllAndFlush(java.util.List.of(book(a, "Zach", "In A"), book(b, "Zach", "In B")));
+    }
+
+    private static BookSubmission book(Exchange exchange, String submitter, String title) {
+        return new BookSubmission(exchange, submitter, title, "https://www.amazon.com/dp/0547928221", "candy-cane");
     }
 }
