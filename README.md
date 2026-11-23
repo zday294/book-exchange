@@ -20,7 +20,15 @@ infra/      Infrastructure as code
 ```
 
 ## Running locally
-Not available yet. Prerequisites and run instructions will be added as the issues for the database, backend and front end are completed.
+Prerequisite: Docker.
+
+**Database** (the only piece that exists so far):
+```bash
+docker compose up -d db
+```
+Postgres listens on `localhost:5433` (database, user and password are all `bookexchange` for local use; override with `POSTGRES_PORT` / `POSTGRES_PASSWORD`). The schema in `db/init.sql` is applied on first start and seeds one exchange with code `XMAS2026`. To start over with an empty database: `docker compose down -v`.
+
+Backend and front end instructions will be added as those issues are completed.
 
 ## Working on it
 - Pick an issue; each lists the issues it depends on.
