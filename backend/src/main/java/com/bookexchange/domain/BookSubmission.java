@@ -1,0 +1,88 @@
+package com.bookexchange.domain;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import java.time.Instant;
+
+@Entity
+@Table(name = "book_submission")
+public class BookSubmission {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "exchange_id", nullable = false)
+    private Exchange exchange;
+
+    @Column(name = "submitter_name", nullable = false, length = 100)
+    private String submitterName;
+
+    @Column(name = "book_title", nullable = false, length = 300)
+    private String bookTitle;
+
+    @Column(name = "amazon_url", nullable = false, length = 2048)
+    private String amazonUrl;
+
+    @Column(length = 20)
+    private String asin;
+
+    @Column(name = "cover_image_url", length = 2048)
+    private String coverImageUrl;
+
+    @Column(name = "wrapping_paper", nullable = false, length = 50)
+    private String wrappingPaper;
+
+    @Column(name = "claimed_by_name", length = 100)
+    private String claimedByName;
+
+    @Column(name = "claimed_at")
+    private Instant claimedAt;
+
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
+    private Instant createdAt;
+
+    protected BookSubmission() {
+        // for JPA
+    }
+
+    public BookSubmission(Exchange exchange, String submitterName, String bookTitle,
+                          String amazonUrl, String wrappingPaper) {
+        this.exchange = exchange;
+        this.submitterName = submitterName;
+        this.bookTitle = bookTitle;
+        this.amazonUrl = amazonUrl;
+        this.wrappingPaper = wrappingPaper;
+    }
+
+    public boolean isClaimed() {
+        return claimedByName != null;
+    }
+
+    public Long getId() { return id; }
+    public Exchange getExchange() { return exchange; }
+    public String getSubmitterName() { return submitterName; }
+    public String getBookTitle() { return bookTitle; }
+    public String getAmazonUrl() { return amazonUrl; }
+    public String getAsin() { return asin; }
+    public void setAsin(String asin) { this.asin = asin; }
+    public String getCoverImageUrl() { return coverImageUrl; }
+    public void setCoverImageUrl(String coverImageUrl) { this.coverImageUrl = coverImageUrl; }
+    public String getWrappingPaper() { return wrappingPaper; }
+    public String getClaimedByName() { return claimedByName; }
+    public Instant getClaimedAt() { return claimedAt; }
+    public Instant getCreatedAt() { return createdAt; }
+
+    public void claim(String participantName, Instant at) {
+        this.claimedByName = participantName;
+        this.claimedAt = at;
+    }
+}
