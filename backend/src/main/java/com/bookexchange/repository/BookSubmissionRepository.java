@@ -8,6 +8,8 @@ public interface BookSubmissionRepository extends JpaRepository<BookSubmission, 
 
     List<BookSubmission> findByExchangeIdOrderByIdAsc(Long exchangeId);
 
+    java.util.Optional<BookSubmission> findByIdAndExchangeId(Long id, Long exchangeId);
+
     @org.springframework.data.jpa.repository.Query(
             "select count(b) > 0 from BookSubmission b "
                     + "where b.exchange.id = :exchangeId and lower(b.submitterName) = lower(:name)")

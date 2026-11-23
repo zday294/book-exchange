@@ -36,6 +36,19 @@ cd backend
 - Wrapping paper keys: `candy-cane`, `snowflake`, `holly`, `stars`, `plaid`, `polka-dot`.
 - A cover lookup is triggered after the book is saved, off the request thread; its failure never affects the response. The real lookup is a separate issue.
 
+### List / get books
+- `GET /api/exchanges/{exchangeCode}/books` (oldest first) and `GET /api/exchanges/{exchangeCode}/books/{bookId}`.
+- The viewer is the optional `X-Participant-Name` header (name only; no header = anonymous).
+- What is visible is decided on the server; hidden fields are omitted from the JSON:
+
+| Field | Unclaimed | Claimed, other viewer | Claimed, the claimer |
+|---|---|---|---|
+| `id`, `submitterName`, `wrappingPaper`, `claimed`, `viewerIsClaimer` | yes | yes | yes |
+| `claimedByName`, `claimedAt`, `bookTitle`, `coverImageUrl` | no | yes | yes |
+| `amazonUrl` | no | **never** | yes |
+
+- Claimer matching is case-insensitive. `404` for an unknown exchange, or a book that doesn't exist in that exchange.
+
 ### API documentation (OpenAPI / Swagger)
 - Swagger UI: http://localhost:8080/swagger-ui.html (try requests against your local backend)
 - Spec: http://localhost:8080/v3/api-docs (JSON) or `/v3/api-docs.yaml`
