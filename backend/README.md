@@ -21,6 +21,7 @@ cd backend
 | `DB_USER` / `DB_PASSWORD` | `bookexchange` / `bookexchange` | Local-dev credentials; set real ones elsewhere |
 | `PORT` | `8080` | HTTP port |
 | `AMAZON_ALLOWED_HOSTS` | `amazon.com,amzn.to,a.co` | Hosts a submitted book link may use (subdomains such as `www.amazon.com` are allowed too) |
+| `SPRINGDOC_ENABLED` | `true` | Serves Swagger UI and the OpenAPI spec |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated browser origins allowed to call `/api/**` |
 
 ## API
@@ -34,6 +35,13 @@ cd backend
 - `400` for validation problems (all reported together), `404` unknown exchange, `409` closed exchange.
 - Wrapping paper keys: `candy-cane`, `snowflake`, `holly`, `stars`, `plaid`, `polka-dot`.
 - A cover lookup is triggered after the book is saved, off the request thread; its failure never affects the response. The real lookup is a separate issue.
+
+### API documentation (OpenAPI / Swagger)
+- Swagger UI: http://localhost:8080/swagger-ui.html (try requests against your local backend)
+- Spec: http://localhost:8080/v3/api-docs (JSON) or `/v3/api-docs.yaml`
+- Turn both off with `SPRINGDOC_ENABLED=false` (the deployed default is decided in the deployment issue).
+- **Every new endpoint documents itself** with springdoc annotations on the controller and DTOs: `@Operation` summary and description, an `@ApiResponse` for each status (error responses use the shared `ApiError` schema), and `@Schema` descriptions/examples on request and response fields. Bean Validation constraints show up automatically; `OpenApiDocsTest` checks the spec is valid.
+- Careful: documentation must never reveal hidden data. Unclaimed books' title/cover/claimer and the Amazon link (claimer only) must not appear in examples of responses to other viewers.
 
 ## Test it
 ```bash
