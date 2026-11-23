@@ -1,0 +1,23 @@
+# Local development Postgres. Credentials here are for local use only.
+# Start:  docker compose up -d db
+# Reset:  docker compose down -v   (init.sql only runs on a fresh volume)
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: bookexchange
+      POSTGRES_USER: bookexchange
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bookexchange}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookexchange -d bookexchange"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
