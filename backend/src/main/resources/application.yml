@@ -18,6 +18,15 @@ server:
   port: ${PORT:8080}
   shutdown: graceful
 
+springdoc:
+  # Switch both off with SPRINGDOC_ENABLED=false (e.g. in production).
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:true}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:true}
+    operations-sorter: method
+  paths-to-match: /api/**
+
 management:
   endpoints:
     web:
