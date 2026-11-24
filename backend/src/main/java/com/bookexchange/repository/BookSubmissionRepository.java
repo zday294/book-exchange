@@ -35,4 +35,13 @@ public interface BookSubmissionRepository extends JpaRepository<BookSubmission, 
                          @org.springframework.data.repository.query.Param("exchangeId") Long exchangeId,
                          @org.springframework.data.repository.query.Param("name") String name,
                          @org.springframework.data.repository.query.Param("at") java.time.Instant at);
+
+    /** Records the product id and cover found by the lookup. Touches nothing else, so it can't undo a claim. */
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @org.springframework.data.jpa.repository.Query(
+            "update BookSubmission b set b.asin = :asin, b.coverImageUrl = :coverUrl where b.id = :id")
+    int updateCover(@org.springframework.data.repository.query.Param("id") Long id,
+                    @org.springframework.data.repository.query.Param("asin") String asin,
+                    @org.springframework.data.repository.query.Param("coverUrl") String coverUrl);
 }
