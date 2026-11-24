@@ -114,4 +114,44 @@ public class BookController {
             @RequestHeader(value = "X-Participant-Name", required = false) String viewerName) {
         return service.get(exchangeCode, bookId, viewerName);
     }
+
+    private static final String ERR_409_CLAIM_CLOSED =
+            "{\"error\": \"This exchange is closed and no longer accepts claims\", \"details\": []}";
+    private static final String ERR_409_TAKEN =
+            "{\"error\": \"This book has already been claimed\", \"details\": []}";
+    private static final String ERR_409_ALREADY_HAVE =
+            "{\"error\": \"You have already claimed a book in this exchange\", \"details\": []}";
+    private static final String ERR_409_OWN =
+            "{\"error\": \"You can't claim a book you submitted yourself\", \"details\": []}";
+
+    @Operation(summary = "Claim a book",
+            description = "Claims an unclaimed book for the named participant and returns it in the "
+                    + "claimer's view (title, cover, claimer and the Amazon link). Safe under concurrency: "
+                    + "of simultaneous claims for one book, or by one person, exactly one succeeds.")
+    @ApiResponse(responseCode = "200", description = "Claimed; the body is the claimer's view of the book")
+    @ApiResponse(responseCode = "400", description = "Missing, blank or too-long participantName",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = @ExampleObject(value = "{\"error\": \"Validation failed\", "
+                            + "\"details\": [\"participantName: must not be blank\"]}")))
+    @ApiResponse(responseCode = "404", description = "No such exchange, or no such book in that exchange",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = {
+                            @ExampleObject(name = "Exchange not found", value = ERR_404),
+                            @ExampleObject(name = "Book not found", value = ERR_404_BOOK)}))
+    @ApiResponse(responseCode = "409",
+            description = "The claim isn't allowed. Nothing is changed.",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = {
+                            @ExampleObject(name = "Book already claimed", value = ERR_409_TAKEN),
+                            @ExampleObject(name = "Person already claimed a book", value = ERR_409_ALREADY_HAVE),
+                            @ExampleObject(name = "Own book", value = ERR_409_OWN),
+                            @ExampleObject(name = "Exchange closed", value = ERR_409_CLAIM_CLOSED)}))
+    @PostMapping("/{bookId}/claim")
+    public BookView claim(
+            @Parameter(description = "Short shareable code of the exchange", example = "XMAS2026")
+            @PathVariable String exchangeCode,
+            @Parameter(description = "Id of the book", example = "12") @PathVariable Long bookId,
+            @Valid @RequestBody ClaimBookRequest request) {
+        return service.claim(exchangeCode, bookId, request.participantName());
+    }
 }

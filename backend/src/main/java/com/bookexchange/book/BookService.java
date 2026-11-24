@@ -6,6 +6,7 @@ import com.bookexchange.domain.ExchangeStatus;
 import com.bookexchange.error.ApiException;
 import com.bookexchange.repository.BookSubmissionRepository;
 import com.bookexchange.repository.ExchangeRepository;
+import java.time.Instant;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class BookService {
 
     static final String ALREADY_SUBMITTED = "You have already submitted a book to this exchange";
+    static final String BOOK_ALREADY_CLAIMED = "This book has already been claimed";
+    static final String YOU_ALREADY_CLAIMED = "You have already claimed a book in this exchange";
+    static final String OWN_BOOK = "You can't claim a book you submitted yourself";
+    private static final String ONE_CLAIM_INDEX = "uq_book_submission_one_claim_per_person";
     private static final String ONE_PER_PERSON_INDEX = "uq_book_submission_one_per_person";
 
     private final ExchangeRepository exchanges;
@@ -59,12 +64,58 @@ public class BookService {
     }
 
     private static boolean isOneSubmissionPerPersonViolation(Throwable e) {
+        return hasMessage(e, ONE_PER_PERSON_INDEX);
+    }
+
+    private static boolean hasMessage(Throwable e, String text) {
         for (Throwable t = e; t != null; t = t.getCause()) {
-            if (t.getMessage() != null && t.getMessage().contains(ONE_PER_PERSON_INDEX)) {
+            if (t.getMessage() != null && t.getMessage().contains(text)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Claims a book for a participant and returns it in the claimer's view. The atomic conditional
+     * update is the guard for two people racing for one book; the partial unique index is the guard
+     * for one person racing for two books. Both losers get a 409.
+     */
+    @Transactional
+    public BookView claim(String exchangeCode, Long bookId, String participantName) {
+        Exchange exchange = findExchange(exchangeCode);
+        BookSubmission book = books.findByIdAndExchangeId(bookId, exchange.getId())
+                .orElseThrow(() -> ApiException.notFound("Book not found"));
+        if (exchange.getStatus() != ExchangeStatus.OPEN) {
+            throw ApiException.conflict("This exchange is closed and no longer accepts claims");
+        }
+        if (book.getSubmitterName().equalsIgnoreCase(participantName)) {
+            throw ApiException.conflict(OWN_BOOK);
+        }
+        if (book.isClaimed()) {
+            throw ApiException.conflict(BOOK_ALREADY_CLAIMED);
+        }
+        if (books.existsByExchangeIdAndClaimedByNameIgnoreCase(exchange.getId(), participantName)) {
+            throw ApiException.conflict(YOU_ALREADY_CLAIMED);
+        }
+
+        int updated;
+        try {
+            updated = books.claimIfUnclaimed(bookId, exchange.getId(), participantName, Instant.now());
+        } catch (DataIntegrityViolationException e) {
+            if (hasMessage(e, ONE_CLAIM_INDEX)) {
+                throw ApiException.conflict(YOU_ALREADY_CLAIMED);
+            }
+            throw e;
+        }
+        if (updated == 0) {
+            throw ApiException.conflict(BOOK_ALREADY_CLAIMED);
+        }
+
+        BookSubmission claimed = books.findById(bookId).orElseThrow();
+        events.publishEvent(new BookClaimedEvent(claimed.getId(), claimed.getBookTitle(),
+                claimed.getCoverImageUrl(), claimed.getClaimedByName(), claimed.getClaimedAt()));
+        return BookView.of(claimed, participantName);
     }
 
     @Transactional(readOnly = true)

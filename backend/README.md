@@ -49,6 +49,14 @@ cd backend
 
 - Claimer matching is case-insensitive. `404` for an unknown exchange, or a book that doesn't exist in that exchange.
 
+### Claim a book
+`POST /api/exchanges/{exchangeCode}/books/{bookId}/claim` with `{ "participantName": "Alex" }`
+- `200` with the book in the **claimer's view** (title, cover, claimer, claim time and the Amazon link).
+- `400` blank/missing name, `404` unknown exchange or book.
+- `409` (nothing changes) if: the book is already claimed; the person already claimed a book in this exchange; the person submitted the book themselves; or the exchange is closed. Names are compared case-insensitively.
+- Race-safe: an atomic `UPDATE ... WHERE claimed_by_name IS NULL` decides who gets a contested book, and the partial unique index from #1 stops one person from winning two books. Losers get `409`.
+- A `BookClaimedEvent` (public view only: title, cover, claimer; never the Amazon link) is published for live updates (#15).
+
 ### API documentation (OpenAPI / Swagger)
 - Swagger UI: http://localhost:8080/swagger-ui.html (try requests against your local backend)
 - Spec: http://localhost:8080/v3/api-docs (JSON) or `/v3/api-docs.yaml`

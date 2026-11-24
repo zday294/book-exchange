@@ -58,6 +58,18 @@ class OpenApiDocsTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void claimEndpointIsDocumented() throws Exception {
+        String path = "$.paths['/api/exchanges/{exchangeCode}/books/{bookId}/claim'].post";
+        mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+                .andExpect(jsonPath(path + ".summary").isNotEmpty())
+                .andExpect(jsonPath(path + ".responses['200']").exists())
+                .andExpect(jsonPath(path + ".responses['400']").exists())
+                .andExpect(jsonPath(path + ".responses['404']").exists())
+                .andExpect(jsonPath(path + ".responses['409']").exists())
+                .andExpect(jsonPath("$.components.schemas.ClaimBookRequest.properties.participantName").exists());
+    }
+
+    @Test
     void errorResponsesUseTheSharedErrorSchema() throws Exception {
         String spec = spec();
         assertThat(spec).contains("#/components/schemas/ApiError");
