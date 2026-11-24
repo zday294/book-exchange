@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Build: type-check and build the Vue app into dist/ ----
-FROM node:22-slim AS build
+FROM node:25-slim AS build
 WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -10,7 +10,7 @@ COPY src src
 RUN npm run build
 
 # ---- Run: the Node server with production dependencies only, non-root ----
-FROM node:22-slim
+FROM node:25-slim
 ENV NODE_ENV=production
 WORKDIR /app
 COPY package.json package-lock.json ./
