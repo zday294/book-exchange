@@ -114,7 +114,7 @@ describe('API proxy', () => {
   it('forwards method, path, query, body and headers (including X-Participant-Name)', async () => {
     const res = await fetch(base + '/api/exchanges/ABC/books?x=1', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Participant-Name': 'Alex' },
+      headers: { 'Content-Type': 'application/json', 'X-Participant-Name': 'Alex', Origin: 'https://app.example.com' },
       body: '{"a":1}',
     })
     expect(res.status).toBe(201)
@@ -127,6 +127,11 @@ describe('API proxy', () => {
     })
     expect(upstream.lastRequest.headers['x-participant-name']).toBe('Alex')
     expect(upstream.lastRequest.headers['content-type']).toBe('application/json')
+  })
+
+  it("does not forward the browser's Origin header (it would trip the backend's CORS check)", async () => {
+    await fetch(base + '/api/anything', { method: 'POST', headers: { Origin: 'https://app.example.com' }, body: '{}' })
+    expect(upstream.lastRequest.headers.origin).toBeUndefined()
   })
 
   it('returns error statuses and bodies unchanged', async () => {

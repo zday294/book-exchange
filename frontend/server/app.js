@@ -49,6 +49,11 @@ export function createApp({ backendUrl, distDir }) {
       proxyTimeout: 0, // no idle timeout: live-update streams stay open
       timeout: 0,
       on: {
+        proxyReq(proxyReq) {
+          // The browser talks to this server (same origin), not to the backend. Forwarding its
+          // Origin header would make the backend's CORS check reject the request as cross-site.
+          proxyReq.removeHeader('origin')
+        },
         error(_err, _req, res) {
           // Never leak upstream details (hostnames, stack traces) to the browser.
           if (res && typeof res.writeHead === 'function' && !res.headersSent) {
