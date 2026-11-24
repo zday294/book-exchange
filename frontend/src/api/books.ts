@@ -43,3 +43,10 @@ export const submitBook = (exchangeCode: string, request: SubmitBookRequest) =>
     method: 'POST',
     body: request,
   })
+
+/** Claims a book. The answer is the claimer's own view of it: title, cover and the book link. */
+export const claimBook = (exchangeCode: string, bookId: number, participantName: string) =>
+  api<Book>(`/api/exchanges/${encodeURIComponent(exchangeCode)}/books/${bookId}/claim`, {
+    method: 'POST',
+    body: { participantName },
+  })

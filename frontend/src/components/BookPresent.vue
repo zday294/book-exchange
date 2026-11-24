@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { Book } from '../api/books'
+import type { Claimability } from '../lib/claim'
 import { presentLayout } from '../lib/layout'
 import WrappedPresent from '../wrapping/WrappedPresent.vue'
 
@@ -9,13 +10,24 @@ import WrappedPresent from '../wrapping/WrappedPresent.vue'
  * Claimed: opened and dimmed, showing the cover, the title and who has it ("Taken").
  * The Amazon link is only ever present in the data for the claimer, so it is only shown then.
  */
-const props = defineProps<{ book: Book }>()
+const props = defineProps<{ book: Book; claimability?: Claimability }>()
+const emit = defineEmits<{ claim: [book: Book] }>()
 
 const layout = computed(() => presentLayout(props.book.id))
 const style = computed(() => ({
   transform: `translateY(${layout.value.offsetY}px) rotate(${layout.value.rotateDeg}deg)`,
 }))
 const tag = computed(() => `From: ${props.book.submitterName}`)
+
+const claimable = computed(() => props.claimability?.state === 'claimable')
+const disabledReason = computed(() =>
+  props.claimability?.state === 'disabled' ? props.claimability.reason : '',
+)
+const buttonLabel = computed(() =>
+  claimable.value
+    ? `Claim the present from ${props.book.submitterName}`
+    : `Present from ${props.book.submitterName}${disabledReason.value ? '. ' + disabledReason.value : ''}`,
+)
 
 const coverFailed = ref(false)
 watch(() => props.book.coverImageUrl, () => (coverFailed.value = false))
@@ -28,7 +40,21 @@ const takenText = computed(() =>
 
 <template>
   <li class="slot" :style="style" :data-test="`book-${book.id}`">
-    <WrappedPresent v-if="!book.claimed" :paper="book.wrappingPaper" :tag="tag" />
+    <!-- Unclaimed: a real button, so it works with the keyboard and screen readers. When it can't be
+         claimed it stays visible but inert (aria-disabled keeps it focusable so the reason is readable). -->
+    <button
+      v-if="!book.claimed"
+      type="button"
+      class="present"
+      :class="{ unavailable: !claimable }"
+      :aria-disabled="!claimable"
+      :aria-label="buttonLabel"
+      :title="disabledReason || undefined"
+      data-test="present"
+      @click="claimable && emit('claim', book)"
+    >
+      <WrappedPresent :paper="book.wrappingPaper" :tag="tag" aria-hidden="true" />
+    </button>
 
     <article v-else class="opened" :class="{ mine: book.viewerIsClaimer }" data-test="opened">
       <div class="cover">
@@ -64,6 +90,25 @@ const takenText = computed(() =>
 .slot {
   list-style: none;
   width: 9rem;
+}
+.present {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.present:focus-visible {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 2px;
+}
+/* Can't be claimed by this person: still there, but plainly not clickable. */
+.present.unavailable {
+  cursor: not-allowed;
+  opacity: 0.6;
+  filter: grayscale(0.4);
 }
 .opened {
   background: var(--color-surface);
