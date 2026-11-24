@@ -21,6 +21,25 @@ infra/      Infrastructure as code
 ## Running locally
 Prerequisite: Docker.
 
+**Everything in containers (one command):**
+```bash
+docker compose up --build
+```
+Then open http://localhost:3000. This starts Postgres, the backend (http://localhost:8080, Swagger UI at `/swagger-ui.html`) and the front end's Node server, which also forwards `/api` to the backend. After changing code, run it again with `--build`. Stop with `docker compose down` (add `-v` to also delete the data).
+
+Ports can be changed with `FRONTEND_PORT`, `BACKEND_PORT` and `POSTGRES_PORT` (for example `FRONTEND_PORT=3001 docker compose up --build`).
+
+| Image | Size on disk | Time to start |
+|---|---|---|
+| backend (JRE 21 + Spring Boot jar) | about 600 MB | about 8 s to "Started" after the container begins; about 25 s from `up` until all three services report healthy on a fresh database |
+| front end (Node 22 slim + server + built app) | about 360 MB | under 2 s |
+
+Measured locally on a laptop, uncompressed. First build takes about 2 minutes (dependencies are cached after that). These feed the cold-start decision in #20.
+
+Both containers run as non-root users and contain no credentials: settings come from environment variables (the compose file supplies throwaway local values).
+
+**Or run the pieces yourself** (e.g. from your IDE) with only the database in Docker:
+
 **Database:**
 ```bash
 docker compose up -d db
