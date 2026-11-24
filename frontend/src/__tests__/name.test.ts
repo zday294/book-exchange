@@ -7,6 +7,18 @@ import { api } from '../api/client'
 import { createAppRouter } from '../router'
 import { PARTICIPANT_STORAGE_KEY, validateName } from '../stores/participant'
 
+/** A tiny backend: one exchange with an empty pile, so the exchange page can load. */
+function stubBackend() {
+  const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+    const body = url.endsWith('/books')
+      ? []
+      : { code: 'K7M2PXA', name: 'Office Christmas', listed: true, status: 'OPEN', bookCount: 0, claimedCount: 0, createdAt: '2026-11-24T14:02:03Z' }
+    return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
+}
+
 async function mountAt(path: string) {
   const pinia = createPinia()
   const router = createAppRouter(createMemoryHistory())
@@ -92,11 +104,12 @@ describe('participant name', () => {
     })
 
     it('saves a trimmed name as typed, then shows the page and the header name', async () => {
+      stubBackend()
       const { wrapper } = await mountAt('/exchange/K7M2PXA')
       await enterName(wrapper, '  aLEx  ')
 
       expect(wrapper.find('[data-test=name-dialog]').exists()).toBe(false)
-      expect(wrapper.get('h1').text()).toBe('Exchange K7M2PXA')
+      expect(wrapper.get('h1').text()).toBe('Office Christmas')
       expect(wrapper.get('[data-test=participant-name]').text()).toBe('aLEx') // case kept as typed
       expect(localStorage.getItem(PARTICIPANT_STORAGE_KEY)).toBe('aLEx')
     })
@@ -104,13 +117,14 @@ describe('participant name', () => {
 
   describe('remembering the name', () => {
     it('does not ask again after a refresh', async () => {
+      stubBackend()
       const first = await mountAt('/exchange/K7M2PXA')
       await enterName(first.wrapper, 'Alex')
       first.wrapper.unmount()
 
       const { wrapper } = await mountAt('/exchange/K7M2PXA') // a fresh app, like a page reload
       expect(wrapper.find('[data-test=name-dialog]').exists()).toBe(false)
-      expect(wrapper.get('h1').text()).toBe('Exchange K7M2PXA')
+      expect(wrapper.get('h1').text()).toBe('Office Christmas')
       expect(wrapper.get('[data-test=participant-name]').text()).toBe('Alex')
     })
   })
@@ -129,8 +143,7 @@ describe('participant name', () => {
     })
 
     it('updates the header, storage and later API calls', async () => {
-      const fetchMock = vi.fn().mockImplementation(async () => new Response('{}', { status: 200 }))
-      vi.stubGlobal('fetch', fetchMock)
+      const fetchMock = stubBackend()
       const { wrapper } = await mountAt('/exchange/K7M2PXA')
 
       await wrapper.get('[data-test=change-name]').trigger('click')

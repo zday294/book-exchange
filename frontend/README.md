@@ -56,6 +56,6 @@ Copy `.env.example` to `.env.local` to override:
   - **The keys must match the backend's list** (`backend/.../book/WrappingPapers.java`); a test compares them. To add a paper: add it to both lists, then add a pattern in `WrappedPresent.vue` if it needs a new design.
   - `npm run dev` then open http://localhost:5173/dev/papers for a gallery of every paper (development only; not in production builds).
 - `src/styles/theme.css` festive colors, fonts and base styles shared by all pages.
-- `src/views/` one component per route (placeholders until their stories).
+- `src/views/` one component per route. `ExchangeView.vue` is the exchange page: the tree, the pile (one `components/BookPresent.vue` per book) and the viewer's own status. It re-reads the pile every 5 seconds until live updates (#15) exist. `lib/layout.ts` gives each present a small tilt and offset from its id, so the pile looks hand-placed but never jumps. The pages are placeholders until their stories: submit (#7).
 
 Node note: tests install a small in-memory `localStorage` (`src/test-setup.ts`) because newer Node versions ship an experimental global one that conflicts with jsdom.
