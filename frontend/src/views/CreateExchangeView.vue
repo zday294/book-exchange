@@ -26,12 +26,16 @@ async function submit() {
   fieldErrors.value = {}
   formError.value = ''
   try {
-    created.value = await createExchange({
+    const exchange = await createExchange({
       name: name.value,
       description: description.value,
       organizerName: organizerName.value,
       listed: listed.value,
     })
+    // The host is now "the current user" in this browser, exactly as if they had entered their name
+    // to join: the exchange page won't ask again and the header shows who they are.
+    participant.setName(exchange.organizerName ?? organizerName.value)
+    created.value = exchange
   } catch (e) {
     if (e instanceof ApiError && Object.keys(e.fieldErrors).length > 0) {
       fieldErrors.value = e.fieldErrors
