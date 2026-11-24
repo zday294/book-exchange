@@ -59,17 +59,29 @@ describe('submit mode and claim mode', () => {
     it('says it is submit mode, offers "Add a book", and holds the presents back', async () => {
       stubApi({ exchange: base })
       const wrapper = await mountAt()
-      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('Submit mode: add your book!')
+      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('📚 Gathering books 📚')
       expect(wrapper.find('.add a').exists()).toBe(true)
       const present = wrapper.get('[data-test=book-1] [data-test=present]')
       expect(present.attributes('aria-disabled')).toBe('true')
       expect(present.attributes('title')).toBe("Claiming hasn't started yet")
     })
 
+    it('keeps the emoji out of what screen readers read', async () => {
+      stubApi({ exchange: base })
+      const wrapper = await mountAt()
+      const hidden = wrapper.findAll('[data-test=mode-banner] [aria-hidden=true]').map((n) => n.text())
+      expect(hidden).toEqual(['📚', '📚'])
+      wrapper.unmount()
+
+      stubApi({ exchange: { ...base, mode: 'CLAIM' } })
+      const claim = await mountAt()
+      expect(claim.findAll('[data-test=mode-banner] [aria-hidden=true]').map((n) => n.text())).toEqual(['🎅', '🎁'])
+    })
+
     it('says it is claim mode, lets people claim, and no longer offers "Add a book"', async () => {
       stubApi({ exchange: { ...base, mode: 'CLAIM' } })
       const wrapper = await mountAt()
-      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('Claim mode: pick a present!')
+      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('🎅 Exchange Time! 🎁')
       expect(wrapper.find('.add').exists()).toBe(false)
       expect(wrapper.get('[data-test=book-1] [data-test=present]').attributes('aria-disabled')).toBe('false')
     })
@@ -198,7 +210,7 @@ describe('submit mode and claim mode', () => {
       expect(init.headers['X-Host-Token']).toBe('mine')
 
       expect(wrapper.find('[role=dialog]').exists()).toBe(false)
-      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('Claim mode: pick a present!')
+      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('🎅 Exchange Time! 🎁')
       expect(wrapper.get('[data-test=mode-description]').text()).toContain('Claim mode')
       expect(wrapper.get('[data-test=mode-switch]').text()).toBe('Go back to submitting…')
       expect(wrapper.find('.add').exists()).toBe(false)
@@ -215,7 +227,7 @@ describe('submit mode and claim mode', () => {
       await flushPromises()
 
       expect(JSON.parse(puts(m)[0][1].body)).toEqual({ mode: 'SUBMIT' })
-      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('Submit mode: add your book!')
+      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('📚 Gathering books 📚')
     })
 
     it('are disabled with an explanation for a closed exchange', async () => {
@@ -233,7 +245,7 @@ describe('submit mode and claim mode', () => {
       await flushPromises()
       expect(wrapper.get('[data-test=mode-error]').text()).toMatch(/not the host/i)
       expect(wrapper.find('[role=dialog]').exists()).toBe(false)
-      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('Submit mode: add your book!') // nothing changed
+      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('📚 Gathering books 📚') // nothing changed
     })
 
     it('report a network problem and allow another try', async () => {
@@ -255,7 +267,7 @@ describe('submit mode and claim mode', () => {
       await wrapper.get('[data-test=mode-switch]').trigger('click')
       await wrapper.get('[data-test=mode-confirm]').trigger('click')
       await flushPromises()
-      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('Claim mode: pick a present!')
+      expect(wrapper.get('[data-test=mode-banner]').text()).toBe('🎅 Exchange Time! 🎁')
     })
 
     it('send only one request when confirm is pressed twice quickly', async () => {

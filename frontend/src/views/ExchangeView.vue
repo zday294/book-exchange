@@ -151,8 +151,13 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
       </p>
       <p class="mode-banner" :class="exchange.mode.toLowerCase()" data-test="mode-banner">
         <template v-if="!exchangeOpen">This exchange is closed.</template>
-        <template v-else-if="exchange.mode === 'SUBMIT'">Submit mode: add your book!</template>
-        <template v-else>Claim mode: pick a present!</template>
+        <!-- The emoji are decoration: screen readers just hear the words. -->
+        <template v-else-if="exchange.mode === 'SUBMIT'">
+          <span aria-hidden="true">📚</span> Gathering books <span aria-hidden="true">📚</span>
+        </template>
+        <template v-else>
+          <span aria-hidden="true">🎅</span> Exchange Time! <span aria-hidden="true">🎁</span>
+        </template>
       </p>
       <p class="status card" data-test="my-status">
         <strong>{{ participant.name }}</strong
