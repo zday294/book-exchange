@@ -23,7 +23,8 @@ const groupName = `paper-${useId()}`
           @change="emit('update:modelValue', paper.key)"
         />
         <WrappedPresent :paper="paper.key" :tag="paper.label" aria-hidden="true" />
-        <span class="name">{{ paper.label }}</span>
+        <!-- The name is on the tag; this keeps an accessible label for the radio. -->
+        <span class="visually-hidden">{{ paper.label }}</span>
       </label>
     </div>
   </fieldset>
@@ -41,7 +42,7 @@ legend {
 }
 .options {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: 0.75rem;
 }
 .option {
@@ -77,7 +78,12 @@ legend {
   outline: 3px solid var(--color-gold);
   outline-offset: 2px;
 }
-.name {
-  font-size: 0.9rem;
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 </style>
