@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory } from 'vue-router'
 import App from '../App.vue'
 import { createAppRouter } from '../router'
-import { useParticipantStore } from '../stores/participant'
+import { PARTICIPANT_STORAGE_KEY, useParticipantStore } from '../stores/participant'
 
 const created = {
   code: 'K7M2PXA',
@@ -77,6 +77,56 @@ describe('create exchange page', () => {
       `${window.location.origin}/exchange/K7M2PXA`,
     )
     expect(wrapper.find('[data-test=form]').exists()).toBe(false)
+  })
+
+  it('saves the host as the current user in this browser, like joining would', async () => {
+    vi.stubGlobal('fetch', respond(201, { ...created, organizerName: 'Zach' }))
+    const { wrapper, router } = await mountPage() // no saved name yet
+    await wrapper.get('#name').setValue('Office Christmas')
+    await wrapper.get('#organizer').setValue('Zach')
+    await wrapper.get('[data-test=form]').trigger('submit')
+    await flushPromises()
+
+    expect(localStorage.getItem(PARTICIPANT_STORAGE_KEY)).toBe('Zach')
+    expect(useParticipantStore().name).toBe('Zach')
+    expect(wrapper.get('[data-test=participant-name]').text()).toBe('Zach') // header updates
+
+    // ...so the exchange page doesn't ask for a name again.
+    await wrapper.get('[data-test=open]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/exchange/K7M2PXA')
+    expect(wrapper.find('[data-test=name-dialog]').exists()).toBe(false)
+  })
+
+  it('replaces a different saved name with the host name', async () => {
+    vi.stubGlobal('fetch', respond(201, { ...created, organizerName: 'Zachary' }))
+    const { wrapper } = await mountPage('Zach')
+    await wrapper.get('#organizer').setValue('Zachary')
+    await wrapper.get('[data-test=form]').trigger('submit')
+    await flushPromises()
+
+    expect(localStorage.getItem(PARTICIPANT_STORAGE_KEY)).toBe('Zachary')
+    expect(wrapper.get('[data-test=participant-name]').text()).toBe('Zachary')
+  })
+
+  it('saves the trimmed name the server returned', async () => {
+    vi.stubGlobal('fetch', respond(201, { ...created, organizerName: 'Zach' }))
+    const { wrapper } = await mountPage()
+    await wrapper.get('#organizer').setValue('  Zach  ')
+    await wrapper.get('[data-test=form]').trigger('submit')
+    await flushPromises()
+    expect(localStorage.getItem(PARTICIPANT_STORAGE_KEY)).toBe('Zach')
+  })
+
+  it('does not change the saved name when creating fails', async () => {
+    vi.stubGlobal('fetch', respond(400, { error: 'Validation failed', details: ['name: must not be blank'] }))
+    const { wrapper } = await mountPage('Zach')
+    await wrapper.get('#organizer').setValue('Someone Else')
+    await wrapper.get('[data-test=form]').trigger('submit')
+    await flushPromises()
+
+    expect(localStorage.getItem(PARTICIPANT_STORAGE_KEY)).toBe('Zach')
+    expect(wrapper.get('[data-test=participant-name]').text()).toBe('Zach')
   })
 
   it('copies the link to the clipboard', async () => {
