@@ -16,4 +16,19 @@ public interface BookSubmissionRepository extends JpaRepository<BookSubmission, 
     boolean existsByExchangeAndSubmitter(
             @org.springframework.data.repository.query.Param("exchangeId") Long exchangeId,
             @org.springframework.data.repository.query.Param("name") String name);
+
+    boolean existsByExchangeIdAndClaimedByNameIgnoreCase(Long exchangeId, String claimedByName);
+
+    /**
+     * Atomic "claim if still unclaimed". Returns 1 if this call won, 0 if the book was already
+     * claimed (or doesn't exist). Concurrent claims on one book serialize on the row lock.
+     */
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @org.springframework.data.jpa.repository.Query(
+            "update BookSubmission b set b.claimedByName = :name, b.claimedAt = :at "
+                    + "where b.id = :id and b.exchange.id = :exchangeId and b.claimedByName is null")
+    int claimIfUnclaimed(@org.springframework.data.repository.query.Param("id") Long id,
+                         @org.springframework.data.repository.query.Param("exchangeId") Long exchangeId,
+                         @org.springframework.data.repository.query.Param("name") String name,
+                         @org.springframework.data.repository.query.Param("at") java.time.Instant at);
 }
