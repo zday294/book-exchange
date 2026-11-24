@@ -24,7 +24,7 @@ Configured only by environment variables:
 | `BACKEND_URL` | `http://localhost:8080` | Backend that `/api/**` is forwarded to |
 
 What it does (`server/app.js`):
-- Serves `dist/`: hashed files under `/assets` are cached for a year, everything else is revalidated; gzip/brotli-style compression via `compression` (gzip/deflate).
+- Serves `dist/`: hashed files under `/assets` are cached for a year, everything else is revalidated; gzip/deflate compression for responses that benefit.
 - Returns `index.html` for client-side routes (so `/exchange/<code>` works on refresh and when shared); missing files are 404.
 - Forwards `/api/**` with headers, status codes and bodies unchanged. Responses are streamed (not buffered or compressed) and there is no idle timeout, so Server-Sent Events (#15) pass straight through; a closed browser tab closes the upstream request. If the backend is down it answers `502` with a generic message.
 - Security headers (helmet), request bodies over 1 MB rejected with `413` (by `Content-Length`), `GET /healthz` for container health checks (does not call the backend).
