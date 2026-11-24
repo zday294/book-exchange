@@ -11,6 +11,8 @@ export interface Book {
   wrappingPaper: string
   claimed: boolean
   viewerIsClaimer: boolean
+  /** The cover's width / height (2 decimals). The one cover fact sent before a claim; absent until known. */
+  coverAspectRatio?: number
   claimedByName?: string
   claimedAt?: string
   bookTitle?: string

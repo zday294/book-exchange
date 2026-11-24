@@ -154,6 +154,9 @@ function connectLive() {
       }
       reconcileSoon()
     },
+    onBookShaped(e) {
+      books.value = books.value.map((b) => (b.id === e.id ? { ...b, coverAspectRatio: e.coverAspectRatio } : b))
+    },
     onModeChanged(e) {
       if (exchange.value) exchange.value = { ...exchange.value, mode: e.mode }
       if (e.mode !== 'PARTY') party.value = null

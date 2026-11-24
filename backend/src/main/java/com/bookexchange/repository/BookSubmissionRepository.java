@@ -40,8 +40,13 @@ public interface BookSubmissionRepository extends JpaRepository<BookSubmission, 
     @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
     @org.springframework.data.jpa.repository.Query(
-            "update BookSubmission b set b.asin = :asin, b.coverImageUrl = :coverUrl where b.id = :id")
+            "update BookSubmission b set b.asin = :asin, b.coverImageUrl = :coverUrl, "
+                    + "b.coverAspectRatio = :ratio where b.id = :id")
     int updateCover(@org.springframework.data.repository.query.Param("id") Long id,
                     @org.springframework.data.repository.query.Param("asin") String asin,
-                    @org.springframework.data.repository.query.Param("coverUrl") String coverUrl);
+                    @org.springframework.data.repository.query.Param("coverUrl") String coverUrl,
+                    @org.springframework.data.repository.query.Param("ratio") java.math.BigDecimal ratio);
+
+    @org.springframework.data.jpa.repository.Query("select b.exchange.code from BookSubmission b where b.id = :id")
+    java.util.Optional<String> findExchangeCodeById(@org.springframework.data.repository.query.Param("id") Long id);
 }

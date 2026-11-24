@@ -1,5 +1,6 @@
 package com.bookexchange;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,6 +38,7 @@ class RetrieveBooksTest extends AbstractIntegrationTest {
         exchange = exchanges.findByCode("RETRIEVE").orElseGet(() -> exchanges.save(new Exchange("RETRIEVE", "Retrieve")));
         unclaimed = books.save(new BookSubmission(exchange, "Zach", "Secret Title", URL, "candy-cane"));
         unclaimed.setCoverImageUrl(COVER);
+        unclaimed.setCoverAspectRatio(new java.math.BigDecimal("0.67"));
         books.save(unclaimed);
         claimed = new BookSubmission(exchange, "Sam", "The Hobbit", URL, "holly");
         claimed.setCoverImageUrl(COVER);
@@ -66,8 +68,34 @@ class RetrieveBooksTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.submitterName").value("Zach"))
                 .andExpect(jsonPath("$.wrappingPaper").value("candy-cane"))
                 .andExpect(jsonPath("$.claimed").value(false))
-                .andExpect(jsonPath("$.viewerIsClaimer").value(false));
+                .andExpect(jsonPath("$.viewerIsClaimer").value(false))
+                .andExpect(jsonPath("$.coverAspectRatio").value(0.67)); // the one cover fact that is public
         assertNoneOf(r, "bookTitle", "coverImageUrl", "amazonUrl", "claimedByName", "claimedAt");
+    }
+
+    @Test
+    void anUnclaimedBookExposesExactlyTheRatioAndNothingElseAboutTheCover() throws Exception {
+        for (String viewer : new String[] {null, "Zach", "Alex"}) {
+            String body = getBook(unclaimed, viewer).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            assertThat(new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).fieldNames())
+                    .toIterable()
+                    .containsExactlyInAnyOrder("id", "submitterName", "wrappingPaper", "claimed", "viewerIsClaimer", "coverAspectRatio");
+            assertThat(body).doesNotContain(COVER).doesNotContain("Secret Title").doesNotContain(URL)
+                    .doesNotContain("idth").doesNotContain("eight"); // no pixel sizes
+        }
+        // and in the list (first element is the unclaimed book; the second is claimed and may show its cover)
+        String list = perform(get("/api/exchanges/{c}/books", exchange.getCode()), "Alex").andReturn().getResponse().getContentAsString();
+        var first = new com.fasterxml.jackson.databind.ObjectMapper().readTree(list).get(0);
+        assertThat(first.fieldNames()).toIterable()
+                .containsExactlyInAnyOrder("id", "submitterName", "wrappingPaper", "claimed", "viewerIsClaimer", "coverAspectRatio");
+        assertThat(first.get("coverAspectRatio").decimalValue()).isEqualByComparingTo("0.67");
+    }
+
+    @Test
+    void theRatioIsOmittedWhenNoCoverIsKnown() throws Exception {
+        unclaimed.setCoverAspectRatio(null);
+        books.save(unclaimed);
+        assertNoneOf(getBook(unclaimed, null).andExpect(status().isOk()), "coverAspectRatio");
     }
 
     @Test

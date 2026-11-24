@@ -8,9 +8,15 @@ const props = withDefaults(
     paper?: string | null
     /** Name shown on the tag (usually the submitter). Omit for no tag. */
     tag?: string
+    /** The book's cover proportions (width / height). Clamped; a typical paperback shape when unknown. */
+    aspect?: number | null
   }>(),
-  { paper: null, tag: undefined },
+  { paper: null, tag: undefined, aspect: null },
 )
+
+const DEFAULT_ASPECT = 0.67
+const MIN_ASPECT = 0.5
+const MAX_ASPECT = 1.6
 
 const p = computed(() => resolvePaper(props.paper))
 const patternId = `paper-${useId()}`
@@ -62,6 +68,31 @@ const cookieStarIcing = star(33, 31, 6.8, 3.4)
 const starTop = star(0, 2, 4, 1.8)
 const bigStar = star(12, 12, 8, 3.4)
 const smallStar = star(32, 33, 5, 2.1)
+
+// ---- the wrapped book: a rectangle in the cover's proportions, bottom-aligned in a 200 x 200 picture ----
+const ratio = computed(() => {
+  const a = props.aspect
+  if (typeof a !== 'number' || !Number.isFinite(a) || a <= 0) return DEFAULT_ASPECT
+  return Math.min(MAX_ASPECT, Math.max(MIN_ASPECT, a))
+})
+const MAX_SIDE = 164
+const BASE = 180
+const book = computed(() => {
+  const r = ratio.value
+  const w = r <= 1 ? MAX_SIDE * r : MAX_SIDE
+  const h = r <= 1 ? MAX_SIDE : MAX_SIDE / r
+  const x = 100 - w / 2
+  const y = BASE - h
+  return { w, h, x, y, cx: 100, cy: y + h / 2 }
+})
+const band = computed(() => Math.max(11, Math.min(book.value.w, book.value.h) * 0.13))
+const bowScale = computed(() => Math.min(1.15, Math.min(book.value.w, book.value.h) / 120))
+const tagScale = computed(() => Math.min(1, book.value.w / 92))
+const tagPos = computed(() => {
+  const b = book.value
+  const half = 31 * tagScale.value
+  return { x: Math.min(b.x + b.w - half - 3, b.cx + b.w * 0.14), y: b.y + b.h - 22 * tagScale.value }
+})
 
 const label = computed(() =>
   props.tag ? `${p.value.label} wrapped present for ${props.tag}` : `${p.value.label} wrapped present`,
@@ -190,32 +221,32 @@ const label = computed(() =>
       </pattern>
     </defs>
 
-    <!-- soft shadow under the box -->
-    <ellipse cx="100" cy="184" rx="78" ry="7" fill="#000" opacity=".12" />
+    <!-- soft shadow under the book -->
+    <ellipse cx="100" :cy="BASE + 4" :rx="book.w / 2 + 8" ry="6" fill="#000" opacity=".12" />
 
-    <!-- the wrapped box: body and a slightly wider lid -->
-    <rect x="26" y="86" width="148" height="92" rx="4" :fill="fill" />
-    <rect x="26" y="86" width="148" height="92" rx="4" fill="none" stroke="#000" stroke-opacity=".18" />
-    <rect x="20" y="66" width="160" height="28" rx="4" :fill="fill" />
-    <rect x="20" y="66" width="160" height="28" rx="4" fill="none" stroke="#000" stroke-opacity=".22" />
-    <rect x="26" y="94" width="148" height="6" fill="#000" opacity=".12" />
+    <!-- the wrapped book -->
+    <rect :x="book.x" :y="book.y" :width="book.w" :height="book.h" rx="3" :fill="fill" data-test="book-shape" />
+    <rect :x="book.x" :y="book.y" :width="6" :height="book.h" rx="3" fill="#000" opacity=".1" />
+    <rect :x="book.x" :y="book.y" :width="book.w" :height="book.h" rx="3" fill="none" stroke="#000" stroke-opacity=".22" />
 
-    <!-- ribbon -->
-    <rect x="90" y="66" width="20" height="112" :fill="p.ribbon" />
-    <rect x="90" y="66" width="20" height="112" fill="none" :stroke="p.ribbonShade" stroke-opacity=".5" />
-    <rect x="20" y="74" width="160" height="12" :fill="p.ribbon" />
-    <rect x="20" y="74" width="160" height="12" fill="none" :stroke="p.ribbonShade" stroke-opacity=".5" />
+    <!-- ribbon crossing in the middle -->
+    <rect :x="book.cx - band / 2" :y="book.y" :width="band" :height="book.h" :fill="p.ribbon" />
+    <rect :x="book.cx - band / 2" :y="book.y" :width="band" :height="book.h" fill="none" :stroke="p.ribbonShade" stroke-opacity=".5" />
+    <rect :x="book.x" :y="book.cy - band / 2" :width="book.w" :height="band" :fill="p.ribbon" />
+    <rect :x="book.x" :y="book.cy - band / 2" :width="book.w" :height="band" fill="none" :stroke="p.ribbonShade" stroke-opacity=".5" />
 
-    <!-- bow -->
-    <path d="M100 66C78 30 44 42 62 62C70 70 90 68 100 66Z" :fill="p.ribbon" :stroke="p.ribbonShade" stroke-width="2" stroke-linejoin="round" />
-    <path d="M100 66C122 30 156 42 138 62C130 70 110 68 100 66Z" :fill="p.ribbon" :stroke="p.ribbonShade" stroke-width="2" stroke-linejoin="round" />
-    <path d="M100 66C86 50 70 50 66 58M100 66C114 50 130 50 134 58" fill="none" :stroke="p.ribbonShade" stroke-width="1.6" stroke-linecap="round" opacity=".6" />
-    <rect x="91" y="58" width="18" height="16" rx="5" :fill="p.ribbon" :stroke="p.ribbonShade" stroke-width="2" />
+    <!-- bow where the bands meet -->
+    <g :transform="`translate(${book.cx} ${book.cy + 4}) scale(${bowScale}) translate(-100 -66)`">
+      <path d="M100 66C78 30 44 42 62 62C70 70 90 68 100 66Z" :fill="p.ribbon" :stroke="p.ribbonShade" stroke-width="2" stroke-linejoin="round" />
+      <path d="M100 66C122 30 156 42 138 62C130 70 110 68 100 66Z" :fill="p.ribbon" :stroke="p.ribbonShade" stroke-width="2" stroke-linejoin="round" />
+      <path d="M100 66C86 50 70 50 66 58M100 66C114 50 130 50 134 58" fill="none" :stroke="p.ribbonShade" stroke-width="1.6" stroke-linecap="round" opacity=".6" />
+      <rect x="91" y="58" width="18" height="16" rx="5" :fill="p.ribbon" :stroke="p.ribbonShade" stroke-width="2" />
+    </g>
 
     <!-- name tag on a string -->
     <g v-if="tagText">
-      <path d="M118 74C132 96 142 106 146 122" fill="none" stroke="#6b5a3c" stroke-width="1.4" />
-      <g transform="translate(146 122) rotate(8)">
+      <path :d="`M${book.cx + 4} ${book.cy + 8}C${book.cx + 10} ${(book.cy + tagPos.y) / 2} ${tagPos.x} ${(book.cy + tagPos.y) / 2} ${tagPos.x} ${tagPos.y - 10 * tagScale}`" fill="none" stroke="#6b5a3c" stroke-width="1.4" />
+      <g :transform="`translate(${tagPos.x} ${tagPos.y}) rotate(8) scale(${tagScale})`" data-test="tag">
         <path d="M-31-10H25L31-4V14H-31Z" fill="#fffaf0" stroke="#6b5a3c" stroke-width="1.4" stroke-linejoin="round" />
         <circle cx="25" cy="-4" r="1.6" fill="#6b5a3c" />
         <text

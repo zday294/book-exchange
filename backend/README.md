@@ -52,6 +52,7 @@ The host can start a **party**: everyone gets a turn to claim a present, one per
 `GET /api/exchanges/{code}/events?name=` (the optional `name` says who is watching, for the party) is a long-lived **Server-Sent Events** stream (`text/event-stream`) for one exchange; browsers open it with `EventSource`. `404` for an unknown exchange, `503` when the server already holds its maximum number of connections.
 - `ready`: the connection is open (sent at once).
 - `book-added`: `{id, submitterName, wrappingPaper}`, a new wrapped present. Nothing about the book.
+- `book-shaped`: `{id, coverAspectRatio}`, the cover lookup finished, so the present's proportions are now known. Nothing else about the cover.
 - `book-claimed`: `{id, claimedByName, claimedAt, bookTitle, coverImageUrl?}`. Public once a book is claimed. **Never the book link**; that stays in the claimer's own response.
 - `mode-changed`: `{mode}` (`SUBMIT`, `CLAIM` or `PARTY`).
 - `party-changed`: the whole party queue (see Party mode). Names and order only.
@@ -99,9 +100,11 @@ An exchange is in exactly one **mode**, and the two are exclusive (the backend e
 | Field | Unclaimed | Claimed, other viewer | Claimed, the claimer |
 |---|---|---|---|
 | `id`, `submitterName`, `wrappingPaper`, `claimed`, `viewerIsClaimer` | yes | yes | yes |
+| `coverAspectRatio` (cover width / height, two decimals, e.g. `0.67`; omitted until a cover is found) | **yes** | yes | yes |
 | `claimedByName`, `claimedAt`, `bookTitle`, `coverImageUrl` | no | yes | yes |
 | `amazonUrl` | no | **never** | yes |
 
+- **A deliberate exception to "an unclaimed book reveals nothing":** `coverAspectRatio` is sent for unclaimed books so presents can be drawn in the book's real proportions. It is one rounded number: never the image URL, the link, the title or pixel sizes (the cover's size could identify an edition). It does hint at the kind of book (paperback, hardcover, picture book); that is accepted. Tests assert that an unclaimed book exposes exactly the ratio and nothing else about the cover.
 - Claimer matching is case-insensitive. `404` for an unknown exchange, or a book that doesn't exist in that exchange.
 
 ### Claim a book
@@ -150,6 +153,8 @@ After a book is saved, `IsbnCoverLookup` runs in the background (`@Async`, after
 1. The ASIN is read from the link (`/dp/`, `/gp/product/`, `/gp/aw/d/`, `/gp/offer-listing/`, `/exec/obidos/ASIN/`, `/product/`). For a short link (`a.co`, `amzn.to`) the redirects are followed until a URL with an ASIN appears; the Amazon product page itself is never downloaded.
 2. If the ASIN is a valid ISBN-10 (print books; checksum checked), the cover comes from Open Library (`https://covers.openlibrary.org/b/isbn/<isbn>-L.jpg`). The lookup only stores the URL after confirming the image really exists. The browser loads the image from Open Library.
 3. Otherwise (a non-book product such as `B08N5WRWNW`, no cover at the source, or any failure) `cover_image_url` stays empty and the page shows a placeholder with the title. Amazon's `og:image` is deliberately not used: it is blocked often and may breach their terms.
+
+The image's width and height are read from its header and only their ratio is kept (`cover_aspect_ratio`, rounded to two decimals, 0.10 to 10.00; an unreadable image just gets no ratio). When it is known a `book-shaped` live event goes out so open pages redraw the present. Added by migration `009-cover-aspect-ratio.sql`.
 
 A failed lookup never affects the submission, and it records nothing else about the book. The cover is only revealed on claim (see the visibility table above).
 

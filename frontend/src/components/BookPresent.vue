@@ -56,7 +56,7 @@ const takenText = computed(() =>
       data-test="present"
       @click="claimable && emit('claim', book)"
     >
-      <WrappedPresent :paper="book.wrappingPaper" :tag="tag" aria-hidden="true" />
+      <WrappedPresent :paper="book.wrappingPaper" :tag="tag" :aspect="book.coverAspectRatio" aria-hidden="true" />
     </button>
 
     <article v-else class="opened" :class="{ mine: book.viewerIsClaimer }" data-test="opened">

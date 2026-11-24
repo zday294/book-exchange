@@ -188,6 +188,19 @@ describe('exchange page', () => {
     })
   })
 
+  describe('wrapped presents', () => {
+    it("are drawn in each book's cover proportions, and a default shape when unknown", async () => {
+      stubApi([{ ...unclaimed, coverAspectRatio: 1.3 }, { ...unclaimed, id: 9, coverAspectRatio: undefined }])
+      const { wrapper } = await mountPage()
+      const ratio = (id: number) => {
+        const r = wrapper.get(`[data-test=book-${id}] [data-test=book-shape]`)
+        return Number(r.attributes('width')) / Number(r.attributes('height'))
+      }
+      expect(ratio(1)).toBeCloseTo(1.3, 2)
+      expect(ratio(9)).toBeCloseTo(0.67, 2)
+    })
+  })
+
   describe('opened books', () => {
     it('stand upright, while wrapped presents keep their angle', async () => {
       stubApi([unclaimed, claimedByAlex])

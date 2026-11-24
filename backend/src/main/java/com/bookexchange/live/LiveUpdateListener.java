@@ -2,6 +2,7 @@ package com.bookexchange.live;
 
 import com.bookexchange.book.BookClaimedEvent;
 import com.bookexchange.book.BookSubmittedEvent;
+import com.bookexchange.cover.BookShapeKnownEvent;
 import com.bookexchange.exchange.ExchangeModeChangedEvent;
 import com.bookexchange.party.PartyChangedEvent;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -18,6 +19,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * <ul>
  *   <li>book-added: who brought it and how it is wrapped, nothing about the book;</li>
  *   <li>book-claimed: what is public once a book is claimed (claimer, title, cover), never the book link;</li>
+ *   <li>book-shaped: the cover's rounded aspect ratio (the lookup found the cover);</li>
  *   <li>mode-changed: the new mode.</li>
  * </ul>
  */
@@ -28,6 +30,9 @@ public class LiveUpdateListener {
 
     @JsonInclude(JsonInclude.Include.NON_NULL) // no cover yet: the field is simply left out
     public record BookClaimed(Long id, String claimedByName, Instant claimedAt, String bookTitle, String coverImageUrl) {}
+
+    /** A present's shape became known (the cover lookup finished). Only the rounded ratio, nothing else. */
+    public record BookReshaped(Long id, java.math.BigDecimal coverAspectRatio) {}
 
     public record ModeChanged(String mode) {}
 
@@ -48,6 +53,11 @@ public class LiveUpdateListener {
         hub.publish(event.exchangeCode(), "book-claimed",
                 new BookClaimed(event.bookId(), event.claimedByName(), event.claimedAt(),
                         event.bookTitle(), event.coverImageUrl()));
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onBookShaped(BookShapeKnownEvent event) {
+        hub.publish(event.exchangeCode(), "book-shaped", new BookReshaped(event.bookId(), event.coverAspectRatio()));
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

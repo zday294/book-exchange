@@ -139,6 +139,31 @@ describe('live updates on the exchange page', () => {
       expect(wrapper.get('[data-test=counts]').text()).toBe('2 presents · 0 taken')
     })
 
+    it('reshapes a present when its cover proportions become known (nothing else about the book)', async () => {
+      stubServer({ exchange, books: [wrapped(1, 'Zach')] })
+      const { wrapper } = await mountPage()
+      stream().open()
+      const widthOf = () => Number(wrapper.get('[data-test=book-1] [data-test=book-shape]').attributes('width'))
+      const before = widthOf()
+
+      stream().send('book-shaped', { id: 1, coverAspectRatio: 1.3 })
+      await flushPromises()
+
+      expect(widthOf()).toBeGreaterThan(before)
+      expect(wrapper.get('[data-test=book-1]').find('[data-test=opened]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('1.3')
+    })
+
+    it('ignores a book-shaped event without a number', async () => {
+      stubServer({ exchange, books: [wrapped(1, 'Zach')] })
+      const { wrapper } = await mountPage()
+      stream().open()
+      const before = wrapper.get('[data-test=book-1] [data-test=book-shape]').attributes('width')
+      stream().send('book-shaped', { id: 1, coverAspectRatio: 'wide' })
+      await flushPromises()
+      expect(wrapper.get('[data-test=book-1] [data-test=book-shape]').attributes('width')).toBe(before)
+    })
+
     it('does not show a present twice when it is already there', async () => {
       stubServer({ exchange, books: [wrapped(1, 'Zach')] })
       const { wrapper } = await mountPage()
