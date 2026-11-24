@@ -99,6 +99,12 @@ describe('WrappingPaperPicker', () => {
     for (const p of WRAPPING_PAPERS) expect(w.text()).toContain(p.label)
   })
 
+  it('puts each paper\'s name on its present\'s tag', () => {
+    const w = mount(WrappingPaperPicker)
+    const tags = w.findAll('svg text').map((t) => t.text())
+    expect(tags).toEqual(WRAPPING_PAPERS.map((p) => p.label))
+  })
+
   it('marks the current value as selected', () => {
     const w = mount(WrappingPaperPicker, { props: { modelValue: 'plaid' } })
     const checked = w.findAll('input[type=radio]').filter((r) => (r.element as HTMLInputElement).checked)

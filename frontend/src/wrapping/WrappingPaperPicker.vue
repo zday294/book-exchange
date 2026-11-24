@@ -22,7 +22,7 @@ const groupName = `paper-${useId()}`
           :data-test="`paper-${paper.key}`"
           @change="emit('update:modelValue', paper.key)"
         />
-        <WrappedPresent :paper="paper.key" aria-hidden="true" />
+        <WrappedPresent :paper="paper.key" :tag="paper.label" aria-hidden="true" />
         <span class="name">{{ paper.label }}</span>
       </label>
     </div>
@@ -41,7 +41,7 @@ legend {
 }
 .options {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
   gap: 0.75rem;
 }
 .option {
