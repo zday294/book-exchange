@@ -47,6 +47,17 @@ class OpenApiDocsTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void retrieveEndpointsAreDocumented() throws Exception {
+        mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/exchanges/{exchangeCode}/books'].get.responses['200']").exists())
+                .andExpect(jsonPath("$.paths['/api/exchanges/{exchangeCode}/books'].get.responses['404']").exists())
+                .andExpect(jsonPath("$.paths['/api/exchanges/{exchangeCode}/books/{bookId}'].get.responses['200']").exists())
+                .andExpect(jsonPath("$.paths['/api/exchanges/{exchangeCode}/books/{bookId}'].get.responses['404']").exists())
+                .andExpect(jsonPath("$.paths['/api/exchanges/{exchangeCode}/books/{bookId}'].get.parameters[?(@.name=='X-Participant-Name')]").isNotEmpty())
+                .andExpect(jsonPath("$.components.schemas.BookView.properties.amazonUrl").exists());
+    }
+
+    @Test
     void errorResponsesUseTheSharedErrorSchema() throws Exception {
         String spec = spec();
         assertThat(spec).contains("#/components/schemas/ApiError");

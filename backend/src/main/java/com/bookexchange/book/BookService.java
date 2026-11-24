@@ -66,4 +66,24 @@ public class BookService {
         }
         return false;
     }
+
+    @Transactional(readOnly = true)
+    public java.util.List<BookView> list(String exchangeCode, String viewerName) {
+        Exchange exchange = findExchange(exchangeCode);
+        return books.findByExchangeIdOrderByIdAsc(exchange.getId()).stream()
+                .map(b -> BookView.of(b, viewerName)).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public BookView get(String exchangeCode, Long bookId, String viewerName) {
+        Exchange exchange = findExchange(exchangeCode);
+        return books.findByIdAndExchangeId(bookId, exchange.getId())
+                .map(b -> BookView.of(b, viewerName))
+                .orElseThrow(() -> ApiException.notFound("Book not found"));
+    }
+
+    private Exchange findExchange(String exchangeCode) {
+        return exchanges.findByCode(exchangeCode)
+                .orElseThrow(() -> ApiException.notFound("Exchange not found"));
+    }
 }

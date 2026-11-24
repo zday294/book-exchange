@@ -12,10 +12,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -71,5 +74,44 @@ public class BookController {
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(book.getId()).toUri();
         return ResponseEntity.created(location).body(SubmittedBookResponse.from(book));
+    }
+
+    private static final String VIEWER_HELP = "The viewer is identified by the optional `X-Participant-Name` "
+            + "header (name only, no authentication). Without it you are an anonymous viewer. Hidden fields are "
+            + "omitted, never sent. Unclaimed books show only id, submitter, wrapping paper and `claimed: false`. "
+            + "Claimed books also show the claimer, claim time, title and cover. The Amazon link is returned "
+            + "only to the claimer (name matched case-insensitively).";
+    private static final String ERR_404_BOOK = "{\"error\": \"Book not found\", \"details\": []}";
+
+    @Operation(summary = "List the books in an exchange's pile",
+            description = "All books in the exchange, oldest first (stable order). " + VIEWER_HELP)
+    @ApiResponse(responseCode = "200", description = "The pile, filtered for the viewer")
+    @ApiResponse(responseCode = "404", description = "No exchange with that code",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = @ExampleObject(value = ERR_404)))
+    @GetMapping
+    public List<BookView> list(
+            @Parameter(description = "Short shareable code of the exchange", example = "XMAS2026")
+            @PathVariable String exchangeCode,
+            @Parameter(description = "Name of the person viewing (optional)", example = "Alex")
+            @RequestHeader(value = "X-Participant-Name", required = false) String viewerName) {
+        return service.list(exchangeCode, viewerName);
+    }
+
+    @Operation(summary = "Get one book", description = VIEWER_HELP)
+    @ApiResponse(responseCode = "200", description = "The book, filtered for the viewer")
+    @ApiResponse(responseCode = "404", description = "No such exchange, or no such book in that exchange",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = {
+                            @ExampleObject(name = "Exchange not found", value = ERR_404),
+                            @ExampleObject(name = "Book not found", value = ERR_404_BOOK)}))
+    @GetMapping("/{bookId}")
+    public BookView get(
+            @Parameter(description = "Short shareable code of the exchange", example = "XMAS2026")
+            @PathVariable String exchangeCode,
+            @Parameter(description = "Id of the book", example = "12") @PathVariable Long bookId,
+            @Parameter(description = "Name of the person viewing (optional)", example = "Alex")
+            @RequestHeader(value = "X-Participant-Name", required = false) String viewerName) {
+        return service.get(exchangeCode, bookId, viewerName);
     }
 }
