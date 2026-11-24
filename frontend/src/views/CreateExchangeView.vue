@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { ApiError } from '../api/client'
 import { createExchange, type Exchange } from '../api/exchanges'
+import { saveHostToken } from '../lib/hostToken'
 import { useParticipantStore } from '../stores/participant'
 
 const participant = useParticipantStore()
@@ -35,6 +36,8 @@ async function submit() {
     // The host is now "the current user" in this browser, exactly as if they had entered their name
     // to join: the exchange page won't ask again and the header shows who they are.
     participant.setName(exchange.organizerName ?? organizerName.value)
+    // Shown once by the server: keep it so this browser stays the host of this exchange.
+    if (exchange.hostToken) saveHostToken(exchange.code, exchange.hostToken)
     created.value = exchange
   } catch (e) {
     if (e instanceof ApiError && Object.keys(e.fieldErrors).length > 0) {

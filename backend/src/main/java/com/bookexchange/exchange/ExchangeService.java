@@ -24,12 +24,14 @@ public class ExchangeService {
     private final ExchangeRepository exchanges;
     private final BookSubmissionRepository books;
     private final ExchangeCodeGenerator codes;
+    private final HostTokens hostTokens;
 
     public ExchangeService(ExchangeRepository exchanges, BookSubmissionRepository books,
-                           ExchangeCodeGenerator codes) {
+                           ExchangeCodeGenerator codes, HostTokens hostTokens) {
         this.exchanges = exchanges;
         this.books = books;
         this.codes = codes;
+        this.hostTokens = hostTokens;
     }
 
     /**
@@ -46,23 +48,50 @@ public class ExchangeService {
             exchange.setDescription(request.description());
             exchange.setCreatedByName(request.organizerName());
             exchange.setListed(request.isListed());
+            String hostToken = hostTokens.generate();
+            exchange.setHostTokenHash(hostTokens.hash(hostToken));
             try {
                 exchanges.saveAndFlush(exchange);
             } catch (DataIntegrityViolationException e) {
                 continue; // someone else took the code between our check and the insert
             }
-            return get(code);
+            // The creator is the host, and this is the only time the token is ever shown.
+            return get(code, hostToken).withHostToken(hostToken);
         }
         throw new IllegalStateException("Could not generate a unique exchange code");
     }
 
+    /** {@code hostToken} is whatever the caller sent (may be null); it only decides {@code isHost}. */
     @Transactional(readOnly = true)
-    public ExchangeResponse get(String code) {
+    public ExchangeResponse get(String code, String hostToken) {
         Exchange exchange = exchanges.findByCode(code)
                 .orElseThrow(() -> ApiException.notFound("Exchange not found"));
+        return describe(exchange, hostTokens.matches(hostToken, exchange.getHostTokenHash()));
+    }
+
+    /** Host only: changes the settings that were sent and leaves the rest alone. */
+    @Transactional
+    public ExchangeResponse update(String code, String hostToken, UpdateExchangeRequest request) {
+        Exchange exchange = exchanges.findByCode(code)
+                .orElseThrow(() -> ApiException.notFound("Exchange not found"));
+        if (!hostTokens.matches(hostToken, exchange.getHostTokenHash())) {
+            throw ApiException.forbidden("Only the host of this exchange can change it");
+        }
+        if (request.name() != null) exchange.setName(request.name());
+        if (request.organizerName() != null) exchange.setCreatedByName(request.organizerName());
+        if (request.listed() != null) exchange.setListed(request.listed());
+        if (request.description() != null) {
+            exchange.setDescription(request.description().isEmpty() ? null : request.description());
+        }
+        exchanges.saveAndFlush(exchange);
+        return describe(exchange, true);
+    }
+
+    private ExchangeResponse describe(Exchange exchange, boolean isHost) {
         return ExchangeResponse.of(exchange,
                 books.countByExchangeId(exchange.getId()),
-                books.countByExchangeIdAndClaimedByNameIsNotNull(exchange.getId()));
+                books.countByExchangeIdAndClaimedByNameIsNotNull(exchange.getId()),
+                isHost);
     }
 
     /**

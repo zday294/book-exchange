@@ -14,9 +14,11 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,8 +37,10 @@ public class ExchangeController {
 
     @Operation(summary = "Create an exchange",
             description = "Creates an OPEN exchange and generates its short, unambiguous code (no 0/O/1/I). "
-                    + "Books can be submitted to it immediately. Anyone can create one (there is no sign-in yet).")
-    @ApiResponse(responseCode = "201", description = "Created; the body includes the generated `code`",
+                    + "Books can be submitted to it immediately. Anyone can create one (there is no sign-in yet). "
+                    + "The response includes a `hostToken`, shown only this once: whoever holds it is the host and "
+                    + "sends it as the `X-Host-Token` header for host-only calls. Only a hash of it is stored.")
+    @ApiResponse(responseCode = "201", description = "Created; the body includes the generated `code` and the `hostToken`",
             headers = @Header(name = "Location", description = "URL of the new exchange",
                     schema = @Schema(example = "http://localhost:8080/api/exchanges/K7M2PXA")))
     @ApiResponse(responseCode = "400",
@@ -76,7 +80,8 @@ public class ExchangeController {
 
     @Operation(summary = "Get an exchange",
             description = "Details of one exchange, found by its code even when it is not listed publicly, "
-                    + "with the number of books and how many are claimed.")
+                    + "with the number of books and how many are claimed. `isHost` is true only when the request "
+                    + "carries the valid `X-Host-Token`.")
     @ApiResponse(responseCode = "200", description = "The exchange")
     @ApiResponse(responseCode = "404", description = "No exchange with that code",
             content = @Content(schema = @Schema(implementation = ApiError.class),
@@ -84,7 +89,36 @@ public class ExchangeController {
     @GetMapping("/{exchangeCode}")
     public ExchangeResponse get(
             @Parameter(description = "Short shareable code of the exchange", example = "XMAS2026")
-            @PathVariable String exchangeCode) {
-        return service.get(exchangeCode);
+            @PathVariable String exchangeCode,
+            @Parameter(description = "The host token, if this person is the host (optional)")
+            @RequestHeader(value = "X-Host-Token", required = false) String hostToken) {
+        return service.get(exchangeCode, hostToken);
+    }
+
+    @Operation(summary = "Change an exchange's settings (host only)",
+            description = "Changes the name, description, host name and public/private setting. Fields that are left "
+                    + "out are not changed; an empty description removes it. Requires the `X-Host-Token` returned when "
+                    + "the exchange was created.")
+    @ApiResponse(responseCode = "200", description = "The updated exchange (`isHost` is true)")
+    @ApiResponse(responseCode = "400",
+            description = "Validation failed (blank or too long values). Every problem is listed in `details`.",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = @ExampleObject(value = "{\"error\": \"Validation failed\", \"details\": "
+                            + "[\"name: must not be blank\"]}")))
+    @ApiResponse(responseCode = "403", description = "Missing or wrong host token, or an exchange that has no host",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = @ExampleObject(value = "{\"error\": \"Only the host of this exchange can change it\", "
+                            + "\"details\": []}")))
+    @ApiResponse(responseCode = "404", description = "No exchange with that code",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = @ExampleObject(value = "{\"error\": \"Exchange not found\", \"details\": []}")))
+    @PatchMapping("/{exchangeCode}")
+    public ExchangeResponse update(
+            @Parameter(description = "Short shareable code of the exchange", example = "K7M2PXA")
+            @PathVariable String exchangeCode,
+            @Parameter(description = "The host token returned when the exchange was created", required = true)
+            @RequestHeader(value = "X-Host-Token", required = false) String hostToken,
+            @Valid @RequestBody UpdateExchangeRequest request) {
+        return service.update(exchangeCode, hostToken, request);
     }
 }

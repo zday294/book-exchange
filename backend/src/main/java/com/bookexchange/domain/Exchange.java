@@ -48,6 +48,11 @@ public class Exchange {
     @Setter
     private ExchangeStatus status = ExchangeStatus.OPEN;
 
+    /** SHA-256 of the host token; null for exchanges created before host tokens existed (no host). */
+    @Column(name = "host_token_hash", length = 64)
+    @Setter
+    private String hostTokenHash;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 

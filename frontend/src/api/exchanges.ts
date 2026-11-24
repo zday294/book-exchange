@@ -1,3 +1,4 @@
+import { hostHeaders } from '../lib/hostToken'
 import { api } from './client'
 
 export interface Exchange {
@@ -10,9 +11,30 @@ export interface Exchange {
   bookCount: number
   claimedCount: number
   createdAt: string
+  /** True only when the host token saved in this browser is valid for this exchange (the server decides). */
+  isHost: boolean
+  /** Only in the answer to creating an exchange, and never again. */
+  hostToken?: string
 }
 
-export const getExchange = (code: string) => api<Exchange>(`/api/exchanges/${encodeURIComponent(code)}`)
+/** Sends the saved host token (if any) so the answer can say whether this browser is the host. */
+export const getExchange = (code: string) =>
+  api<Exchange>(`/api/exchanges/${encodeURIComponent(code)}`, { headers: hostHeaders(code) })
+
+/** The settings a host can change; leave a field out to keep it, send '' as description to remove it. */
+export interface UpdateExchangeRequest {
+  name?: string
+  description?: string
+  organizerName?: string
+  listed?: boolean
+}
+
+export const updateExchange = (code: string, changes: UpdateExchangeRequest) =>
+  api<Exchange>(`/api/exchanges/${encodeURIComponent(code)}`, {
+    method: 'PATCH',
+    body: changes,
+    headers: hostHeaders(code),
+  })
 
 export interface CreateExchangeRequest {
   name: string

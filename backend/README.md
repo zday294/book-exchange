@@ -30,6 +30,14 @@ cd backend
 - `GET /api/exchanges/{exchangeCode}` -> name, description, organizer, listed, status, `bookCount`, `claimedCount`, `createdAt`; `404` for an unknown code (private exchanges are found this way too).
 - Not yet: closing/editing/organizer-only actions (need sign-in, #17), and the public list (#13).
 
+### The host, and changing an exchange's settings
+There is no sign-in yet, so the host is whoever holds the **host token**:
+- `POST /api/exchanges` returns a `hostToken` (43 URL-safe characters, 256 random bits) **once**. Only its SHA-256 hash is stored (`exchange.host_token_hash`), so a copy of the database can't be used to act as a host. It is never returned or logged again. Losing it means losing host controls until sign-in (#17) exists.
+- Host-only calls send it as the **`X-Host-Token`** header (compared in constant time). A missing or wrong token, a token from another exchange, and any exchange without a token (those created before this existed, such as the seeded `XMAS2026`) all get `403`.
+- `GET /api/exchanges/{code}` includes `isHost`: true only when the request carries the valid token. The UI shows host controls only when the server says so.
+- `PATCH /api/exchanges/{code}` (host only) changes `name`, `description`, `organizerName` and/or `listed`. Fields left out are unchanged; an empty `description` removes it; validation is the same as at creation (`400` with per-field `details`). `404` for an unknown exchange.
+- CORS allows the `PATCH` method and the `X-Host-Token` header.
+
 ### List public exchanges
 `GET /api/exchanges?query=&status=&page=&size=`
 - Lists only exchanges that are public (`listed`). Private exchanges never appear, even when searched for by exact name; they are reached by code with `GET /api/exchanges/{code}`.

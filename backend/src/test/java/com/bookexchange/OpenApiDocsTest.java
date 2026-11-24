@@ -96,6 +96,22 @@ class OpenApiDocsTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void hostEndpointsAndTheTokenAreDocumented() throws Exception {
+        String patch = "$.paths['/api/exchanges/{exchangeCode}'].patch";
+        mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+                .andExpect(jsonPath(patch + ".summary").isNotEmpty())
+                .andExpect(jsonPath(patch + ".parameters[?(@.name=='X-Host-Token')]").isNotEmpty())
+                .andExpect(jsonPath(patch + ".responses['200']").exists())
+                .andExpect(jsonPath(patch + ".responses['400']").exists())
+                .andExpect(jsonPath(patch + ".responses['403']").exists())
+                .andExpect(jsonPath(patch + ".responses['404']").exists())
+                .andExpect(jsonPath("$.paths['/api/exchanges/{exchangeCode}'].get.parameters[?(@.name=='X-Host-Token')]").isNotEmpty())
+                .andExpect(jsonPath("$.components.schemas.ExchangeResponse.properties.isHost").exists())
+                .andExpect(jsonPath("$.components.schemas.ExchangeResponse.properties.hostToken").exists())
+                .andExpect(jsonPath("$.components.schemas.UpdateExchangeRequest.properties.listed").exists());
+    }
+
+    @Test
     void errorResponsesUseTheSharedErrorSchema() throws Exception {
         String spec = spec();
         assertThat(spec).contains("#/components/schemas/ApiError");
