@@ -48,6 +48,13 @@ app:
     # before the browser reconnects.
     max-subscribers: ${EVENTS_MAX_SUBSCRIBERS:1000}
     connection-minutes: ${EVENTS_CONNECTION_MINUTES:30}
+  party:
+    # How long one person's turn lasts in a party (seconds), and how long a person who closed the page still
+    # counts as online (so a refresh or a moment without signal doesn't lose their turn).
+    turn-seconds: ${PARTY_TURN_SECONDS:120}
+    offline-grace-seconds: ${PARTY_OFFLINE_GRACE_SECONDS:30}
+    # How often the party timer looks at running parties.
+    tick-millis: ${PARTY_TICK_MILLIS:1000}
   amazon:
     # Hosts a submitted book link may use (subdomains such as www.amazon.com are allowed too).
     allowed-hosts: ${AMAZON_ALLOWED_HOSTS:amazon.com,amzn.to,a.co}

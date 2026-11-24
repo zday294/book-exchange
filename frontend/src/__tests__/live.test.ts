@@ -100,7 +100,7 @@ describe('live updates on the exchange page', () => {
       stubServer({ exchange, books: [] })
       await mountPage()
       expect(FakeEventSource.instances).toHaveLength(1)
-      expect(stream().url).toBe('/api/exchanges/K7M2PXA/events')
+      expect(stream().url).toBe('/api/exchanges/K7M2PXA/events?name=Alex')
     })
 
     it('is closed when the person leaves the page', async () => {

@@ -1,4 +1,5 @@
 import { baseUrl } from '../api/client'
+import type { PartyState } from '../api/party'
 
 /** What the server tells everyone watching an exchange. Public information only: never a book link. */
 export interface BookAdded {
@@ -14,13 +15,15 @@ export interface BookClaimed {
   coverImageUrl?: string
 }
 export interface ModeChanged {
-  mode: 'SUBMIT' | 'CLAIM'
+  mode: 'SUBMIT' | 'CLAIM' | 'PARTY'
 }
 
 export interface LiveHandlers {
   onBookAdded(event: BookAdded): void
   onBookClaimed(event: BookClaimed): void
   onModeChanged(event: ModeChanged): void
+  /** The party queue changed (a snapshot of the whole queue). */
+  onPartyChanged(state: PartyState): void
   /** The stream is up (the first time). */
   onConnected(): void
   /** The stream was lost; the browser keeps trying to reconnect by itself. */
@@ -45,10 +48,17 @@ const MAX_RETRY_MS = 60000
  * growing pause. Either way the page is told when the stream is lost and when it is back, and meanwhile keeps
  * polling.
  */
-export function openLiveUpdates(exchangeCode: string, handlers: LiveHandlers): LiveConnection | null {
+export function openLiveUpdates(
+  exchangeCode: string,
+  /** Who is watching: with a name, the server counts this page as online for the party. */
+  name: string,
+  handlers: LiveHandlers,
+): LiveConnection | null {
   if (typeof EventSource === 'undefined') return null
 
-  const url = `${baseUrl()}/api/exchanges/${encodeURIComponent(exchangeCode)}/events`
+  // A browser's EventSource can't send headers, so the name goes in the address.
+  const who = name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ''
+  const url = `${baseUrl()}/api/exchanges/${encodeURIComponent(exchangeCode)}/events${who}`
   let source: EventSource | null = null
   let retryTimer: ReturnType<typeof setTimeout> | undefined
   let stopped = false
@@ -101,6 +111,9 @@ export function openLiveUpdates(exchangeCode: string, handlers: LiveHandlers): L
     listen<BookAdded>(es, 'book-added', handlers.onBookAdded)
     listen<BookClaimed>(es, 'book-claimed', handlers.onBookClaimed)
     listen<ModeChanged>(es, 'mode-changed', handlers.onModeChanged)
+    listen<PartyState>(es, 'party-changed', (state) => {
+      if (Array.isArray(state.queue)) handlers.onPartyChanged(state)
+    })
   }
 
   connect()
