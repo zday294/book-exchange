@@ -45,11 +45,11 @@ export const WRAPPING_PAPERS: readonly WrappingPaper[] = [
     base: '#1f7a7a', accent: '#ffffff', accent2: '#f4c542', ribbon: '#c8202f', ribbonShade: '#8f1520',
   },
   {
-    key: 'sugar-cookie', label: 'Sugar cookie', pattern: 'cookies',
+    key: 'sugar-cookie', label: 'Cookie', pattern: 'cookies',
     base: '#f3dfb6', accent: '#e2b878', accent2: '#c8202f', ribbon: '#c8202f', ribbonShade: '#8f1520',
   },
   {
-    key: 'christmas-tree', label: 'Christmas tree', pattern: 'trees',
+    key: 'christmas-tree', label: 'Tree', pattern: 'trees',
     base: '#dcebf2', accent: '#1f6b45', accent2: '#c8202f', ribbon: '#c8202f', ribbonShade: '#8f1520',
   },
   {
