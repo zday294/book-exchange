@@ -49,6 +49,12 @@ Copy `.env.example` to `.env.local` to override:
 - `src/router/` routes: `/`, `/exchanges/new`, `/exchange/:exchangeCode`, `/exchange/:exchangeCode/submit`
 - `src/api/` `client.ts` is the only place that calls `fetch`: JSON in/out, adds `X-Participant-Name` when a name is saved, throws `ApiError` (with per-field errors for forms). One module per resource next to it.
 - `src/stores/participant.ts` who the visitor says they are (name only, saved in `localStorage`). The name-entry gate is story #8.
+- `src/wrapping/` the wrapping papers, drawn as SVG (no image files):
+  - `papers.ts` the list of papers (key, label, pattern type, colors) and `resolvePaper()`, which falls back to the default for an unknown key.
+  - `WrappedPresent.vue` draws a box, ribbon, bow and optional name tag at any size: `<WrappedPresent paper="holly" tag="Alex" />`.
+  - `WrappingPaperPicker.vue` radio group of all papers, used with `v-model` (emits the key).
+  - **The keys must match the backend's list** (`backend/.../book/WrappingPapers.java`); a test compares them. To add a paper: add it to both lists, then add a pattern in `WrappedPresent.vue` if it needs a new design.
+  - `npm run dev` then open http://localhost:5173/dev/papers for a gallery of every paper (development only; not in production builds).
 - `src/styles/theme.css` festive colors, fonts and base styles shared by all pages.
 - `src/views/` one component per route (placeholders until their stories).
 
