@@ -63,6 +63,7 @@ const takenText = computed(() =>
 <style scoped>
 .slot {
   list-style: none;
+  width: 9rem;
 }
 .opened {
   background: var(--color-surface);

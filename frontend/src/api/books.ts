@@ -20,3 +20,26 @@ export interface Book {
 
 export const getBooks = (exchangeCode: string) =>
   api<Book[]>(`/api/exchanges/${encodeURIComponent(exchangeCode)}/books`)
+
+export interface SubmitBookRequest {
+  submitterName: string
+  bookTitle: string
+  amazonUrl: string
+  wrappingPaper: string
+}
+
+/** What the submitter gets back about their own book (not the public pile view). */
+export interface SubmittedBook {
+  id: number
+  submitterName: string
+  bookTitle: string
+  amazonUrl: string
+  wrappingPaper: string
+  claimed: boolean
+}
+
+export const submitBook = (exchangeCode: string, request: SubmitBookRequest) =>
+  api<SubmittedBook>(`/api/exchanges/${encodeURIComponent(exchangeCode)}/books`, {
+    method: 'POST',
+    body: request,
+  })
