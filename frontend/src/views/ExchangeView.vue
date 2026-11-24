@@ -12,6 +12,7 @@ import PartyQueue from '../components/PartyQueue.vue'
 import TreeIllustration from '../components/TreeIllustration.vue'
 import { claimability, claimFailureMessage } from '../lib/claim'
 import { forgetExchange, rememberExchange } from '../lib/lastExchange'
+import { getMySubmission } from '../lib/mySubmission'
 import { openLiveUpdates, type LiveConnection } from '../lib/liveUpdates'
 import { useParticipantStore } from '../stores/participant'
 
@@ -195,6 +196,11 @@ function onHostChange(updated: Exchange) {
   rememberExchange({ code: updated.code, name: updated.name })
 }
 
+const mySubmittedBook = computed(() => books.value.find((b) => sameName(b.submitterName, participant.name)))
+/** What this browser remembers of the person's own submission (the server never sends it back). */
+const mySubmission = computed(() =>
+  mySubmittedBook.value ? getMySubmission(props.exchangeCode, participant.name) : undefined,
+)
 const myBook = computed(() => books.value.find((b) => b.viewerIsClaimer))
 const exchangeOpen = computed(() => exchange.value?.status === 'OPEN')
 
@@ -300,7 +306,22 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
           <span aria-hidden="true">🎅</span> Exchange Time! <span aria-hidden="true">🎁</span>
         </template>
       </p>
-      <p class="status card" data-test="my-status">
+      <p v-if="submitting" class="status card" data-test="my-status">
+        <strong>{{ participant.name }}</strong
+        >,
+        <template v-if="mySubmittedBook"
+          >you have submitted a book<template v-if="mySubmission">: <em>{{ mySubmission.bookTitle }}</em>
+          <a
+            :href="mySubmission.amazonUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-test="my-submitted-link"
+            >View the book</a
+          ></template>.
+        </template>
+        <template v-else>you have not submitted a book.</template>
+      </p>
+      <p v-else class="status card" data-test="my-status">
         <strong>{{ participant.name }}</strong
         >,
         <template v-if="myBook">

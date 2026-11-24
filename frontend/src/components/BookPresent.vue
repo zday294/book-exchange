@@ -14,8 +14,11 @@ const props = defineProps<{ book: Book; claimability?: Claimability }>()
 const emit = defineEmits<{ claim: [book: Book] }>()
 
 const layout = computed(() => presentLayout(props.book.id))
+// Wrapped presents sit at a slight angle in the pile; opened books are upright so they are easy to read.
 const style = computed(() => ({
-  transform: `translateY(${layout.value.offsetY}px) rotate(${layout.value.rotateDeg}deg)`,
+  transform: props.book.claimed
+    ? `translateY(${layout.value.offsetY}px)`
+    : `translateY(${layout.value.offsetY}px) rotate(${layout.value.rotateDeg}deg)`,
 }))
 const tag = computed(() => `From: ${props.book.submitterName}`)
 

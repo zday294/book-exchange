@@ -6,6 +6,7 @@ import App from '../App.vue'
 import type { Book } from '../api/books'
 import { presentLayout } from '../lib/layout'
 import { createAppRouter } from '../router'
+import { saveMySubmission } from '../lib/mySubmission'
 import { PARTICIPANT_STORAGE_KEY, useParticipantStore } from '../stores/participant'
 
 const exchange = {
@@ -40,13 +41,13 @@ function json(body: unknown, status = 200) {
 }
 
 /** Routes the page's two requests; `books` may be a function so a test can change the pile. */
-function stubApi(books: Book[] | (() => Book[]), options: { exchangeStatus?: number } = {}) {
+function stubApi(books: Book[] | (() => Book[]), options: { exchangeStatus?: number; mode?: string } = {}) {
   const fetchMock = vi.fn().mockImplementation(async (url: string) => {
     if (url.endsWith('/books')) return json(typeof books === 'function' ? books() : books)
     if (options.exchangeStatus && options.exchangeStatus !== 200) {
       return json({ error: 'Exchange not found', details: [] }, options.exchangeStatus)
     }
-    return json(exchange)
+    return json(options.mode ? { ...exchange, mode: options.mode } : exchange)
   })
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
@@ -142,32 +143,60 @@ describe('exchange page', () => {
   })
 
   describe('your status', () => {
-    it('says you have not claimed yet', async () => {
-      stubApi([unclaimed, claimedByAlex])
+    it('in claim mode, says you have not claimed yet', async () => {
+      stubApi([unclaimed, claimedByAlex], { mode: 'CLAIM' })
       const { wrapper } = await mountPage()
       expect(wrapper.get('[data-test=my-status]').text()).toBe("Zach, you haven't claimed a book yet.")
     })
 
-    it('shows what you claimed, with the link', async () => {
-      stubApi([claimedByMe])
+    it('in claim mode, shows what you claimed, with the link', async () => {
+      stubApi([claimedByMe], { mode: 'CLAIM' })
       const { wrapper } = await mountPage()
       expect(wrapper.get('[data-test=my-status]').text()).toContain('you claimed Dune')
       expect(wrapper.get('[data-test=my-amazon]').attributes('href')).toBe(URL)
     })
+
+    it('while gathering books, says you have not submitted a book', async () => {
+      stubApi([claimedByAlex]) // nobody named Zach brought anything
+      const { wrapper } = await mountPage()
+      expect(wrapper.get('[data-test=my-status]').text()).toBe('Zach, you have not submitted a book.')
+      expect(wrapper.text()).not.toContain('claimed a book yet')
+    })
+
+    it('while gathering books, says you submitted one and links to it', async () => {
+      saveMySubmission('K7M2PXA', 'zach', { bookTitle: 'Dune', amazonUrl: URL }) // name match ignores case
+      stubApi([unclaimed]) // brought by Zach
+      const { wrapper } = await mountPage()
+      const status = wrapper.get('[data-test=my-status]')
+      expect(status.text()).toContain('you have submitted a book: Dune')
+      expect(status.get('[data-test=my-submitted-link]').attributes('href')).toBe(URL)
+      expect(status.get('[data-test=my-submitted-link]').attributes('target')).toBe('_blank')
+    })
+
+    it("says you submitted one even when this browser doesn't remember it (no link then)", async () => {
+      stubApi([unclaimed])
+      const { wrapper } = await mountPage()
+      expect(wrapper.get('[data-test=my-status]').text()).toBe('Zach, you have submitted a book.')
+      expect(wrapper.find('[data-test=my-submitted-link]').exists()).toBe(false)
+    })
+
+    it("does not show another person's remembered book", async () => {
+      saveMySubmission('K7M2PXA', 'Sam', { bookTitle: 'Secret', amazonUrl: URL })
+      stubApi([unclaimed]) // Zach's book; this browser's saved book is Sam's
+      const { wrapper } = await mountPage()
+      expect(wrapper.text()).not.toContain('Secret')
+    })
   })
 
-  it('shows an empty state with a link to add a book', async () => {
-    stubApi([])
-    const { wrapper } = await mountPage()
-    expect(wrapper.get('[data-test=empty]').text()).toContain('No presents yet — add one!')
-    expect(wrapper.find('[data-test=pile]').exists()).toBe(false)
-    expect(wrapper.get('[data-test=empty] a').attributes('href')).toBe('/exchange/K7M2PXA/submit')
-  })
-
-  it('links to the submit page when there are books', async () => {
-    stubApi([unclaimed])
-    const { wrapper } = await mountPage()
-    expect(wrapper.get('.add a').attributes('href')).toBe('/exchange/K7M2PXA/submit')
+  describe('opened books', () => {
+    it('stand upright, while wrapped presents keep their angle', async () => {
+      stubApi([unclaimed, claimedByAlex])
+      const { wrapper } = await mountPage()
+      const wrapped = wrapper.get('[data-test=book-1]').attributes('style')
+      const opened = wrapper.get('[data-test=book-2]').attributes('style')
+      expect(wrapped).toContain('rotate(')
+      expect(opened).not.toContain('rotate')
+    })
   })
 
   describe('loading problems', () => {
@@ -253,7 +282,7 @@ describe('exchange page', () => {
       await flushPromises()
 
       expect(wrapper.find('[data-test=amazon]').exists()).toBe(false)
-      expect(wrapper.get('[data-test=my-status]').text()).toContain("haven't claimed")
+      expect(wrapper.get('[data-test=my-status]').text()).toContain('you have not submitted a book')
     })
 
     it('ignores a slow answer that was for a previous name', async () => {
