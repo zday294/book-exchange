@@ -152,8 +152,9 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
 }
 /* The pile sits around the base of the tree: pulled up so the presents overlap its bottom. */
 .pile {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; /* a pile of one sits under the tree, not in the corner */
   gap: 1rem 0.75rem;
   padding: 0;
   margin: 0.5rem 0 0;
