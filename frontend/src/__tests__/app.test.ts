@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createMemoryHistory } from 'vue-router'
 import App from '../App.vue'
 import { createAppRouter } from '../router'
+import { PARTICIPANT_STORAGE_KEY } from '../stores/participant'
 
 async function mountAt(path: string) {
   const router = createAppRouter(createMemoryHistory())
@@ -15,7 +16,11 @@ async function mountAt(path: string) {
 }
 
 describe('routes', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  beforeEach(() => localStorage.setItem(PARTICIPANT_STORAGE_KEY, 'Alex')) // pages that need a name get one
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    localStorage.clear()
+  })
 
   it.each([
     ['/exchanges/new', 'Create an exchange'],

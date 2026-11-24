@@ -7,8 +7,8 @@ import SubmitBookView from '../views/SubmitBookView.vue'
 export const routes: RouteRecordRaw[] = [
   { path: '/', name: 'home', component: HomeView },
   { path: '/exchanges/new', name: 'create-exchange', component: CreateExchangeView },
-  { path: '/exchange/:exchangeCode', name: 'exchange', component: ExchangeView, props: true },
-  { path: '/exchange/:exchangeCode/submit', name: 'submit-book', component: SubmitBookView, props: true },
+  { path: '/exchange/:exchangeCode', name: 'exchange', component: ExchangeView, props: true, meta: { requiresName: true } },
+  { path: '/exchange/:exchangeCode/submit', name: 'submit-book', component: SubmitBookView, props: true, meta: { requiresName: true } },
 ]
 
 // Development-only: a gallery for looking at the wrapping papers (not shipped in production builds).

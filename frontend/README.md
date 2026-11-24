@@ -48,7 +48,7 @@ Copy `.env.example` to `.env.local` to override:
 - `server/` the production Node server and its tests (plain ES modules, no build step)
 - `src/router/` routes: `/`, `/exchanges/new`, `/exchange/:exchangeCode`, `/exchange/:exchangeCode/submit`
 - `src/api/` `client.ts` is the only place that calls `fetch`: JSON in/out, adds `X-Participant-Name` when a name is saved, throws `ApiError` (with per-field errors for forms). One module per resource next to it.
-- `src/stores/participant.ts` who the visitor says they are (name only, saved in `localStorage`). The name-entry gate is story #8.
+- `src/stores/participant.ts` who the visitor says they are (name only, saved in `localStorage`; names are trimmed and must be 1 to 100 characters). `components/NameDialog.vue` is the prompt: pages whose route has `meta: { requiresName: true }` (the exchange and submit pages) show only the prompt until a name is saved; the header's "Not you? Change name" reopens it. Any new page that acts as a participant should set that route meta.
 - `src/wrapping/` the wrapping papers, drawn as SVG (no image files):
   - `papers.ts` the list of papers (key, label, pattern type, colors) and `resolvePaper()`, which falls back to the default for an unknown key.
   - `WrappedPresent.vue` draws a box, ribbon, bow and optional name tag at any size: `<WrappedPresent paper="holly" tag="Alex" />`.

@@ -11,7 +11,17 @@ const participant = useParticipantStore()
       <RouterLink to="/">Find an exchange</RouterLink>
       <RouterLink to="/exchanges/new">Create an exchange</RouterLink>
     </nav>
-    <span v-if="participant.name" class="who" data-test="participant-name">{{ participant.name }}</span>
+    <span class="who">
+      <template v-if="participant.name">
+        <span data-test="participant-name">{{ participant.name }}</span>
+        <button type="button" class="link" data-test="change-name" @click="participant.openDialog()">
+          Not you? Change name
+        </button>
+      </template>
+      <button v-else type="button" class="link" data-test="change-name" @click="participant.openDialog()">
+        Enter your name
+      </button>
+    </span>
   </header>
 </template>
 
@@ -44,6 +54,18 @@ nav a.router-link-exact-active {
 }
 .who {
   font-size: 0.9rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+button.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #fff;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
   opacity: 0.9;
 }
 </style>
