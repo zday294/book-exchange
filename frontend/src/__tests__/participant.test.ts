@@ -25,3 +25,4 @@ describe('participant store', () => {
     expect(localStorage.getItem(PARTICIPANT_STORAGE_KEY)).toBeNull()
   })
 })
+it('deliberately fails', () => { expect(1).toBe(2) })

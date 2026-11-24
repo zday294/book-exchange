@@ -13,3 +13,4 @@ CREATE TABLE exchange (
     CONSTRAINT exchange_status_check CHECK (status IN ('OPEN', 'CLOSED'))
 );
 --rollback DROP TABLE exchange;
+-- throwaway edit to prove the guard
