@@ -112,6 +112,20 @@ class OpenApiDocsTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void modeEndpointIsDocumented() throws Exception {
+        String put = "$.paths['/api/exchanges/{exchangeCode}/mode'].put";
+        mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+                .andExpect(jsonPath(put + ".summary").isNotEmpty())
+                .andExpect(jsonPath(put + ".parameters[?(@.name=='X-Host-Token')]").isNotEmpty())
+                .andExpect(jsonPath(put + ".responses['200']").exists())
+                .andExpect(jsonPath(put + ".responses['400']").exists())
+                .andExpect(jsonPath(put + ".responses['403']").exists())
+                .andExpect(jsonPath(put + ".responses['404']").exists())
+                .andExpect(jsonPath("$.components.schemas.ExchangeResponse.properties.mode.enum.length()").value(2))
+                .andExpect(jsonPath("$.components.schemas.ChangeModeRequest.properties.mode").exists());
+    }
+
+    @Test
     void errorResponsesUseTheSharedErrorSchema() throws Exception {
         String spec = spec();
         assertThat(spec).contains("#/components/schemas/ApiError");

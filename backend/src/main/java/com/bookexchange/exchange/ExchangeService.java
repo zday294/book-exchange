@@ -1,12 +1,14 @@
 package com.bookexchange.exchange;
 
 import com.bookexchange.domain.Exchange;
+import com.bookexchange.domain.ExchangeMode;
 import com.bookexchange.domain.ExchangeStatus;
 import com.bookexchange.error.ApiException;
 import com.bookexchange.repository.BookSubmissionRepository;
 import com.bookexchange.repository.ExchangeRepository;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,13 +27,15 @@ public class ExchangeService {
     private final BookSubmissionRepository books;
     private final ExchangeCodeGenerator codes;
     private final HostTokens hostTokens;
+    private final ApplicationEventPublisher events;
 
     public ExchangeService(ExchangeRepository exchanges, BookSubmissionRepository books,
-                           ExchangeCodeGenerator codes, HostTokens hostTokens) {
+                           ExchangeCodeGenerator codes, HostTokens hostTokens, ApplicationEventPublisher events) {
         this.exchanges = exchanges;
         this.books = books;
         this.codes = codes;
         this.hostTokens = hostTokens;
+        this.events = events;
     }
 
     /**
@@ -84,6 +88,25 @@ public class ExchangeService {
             exchange.setDescription(request.description().isEmpty() ? null : request.description());
         }
         exchanges.saveAndFlush(exchange);
+        return describe(exchange, true);
+    }
+
+    /**
+     * Host only: switches between submit mode and claim mode. Takes the exchange's row lock, so it waits for
+     * submissions and claims already in progress and they see the new mode afterwards.
+     */
+    @Transactional
+    public ExchangeResponse setMode(String code, String hostToken, ExchangeMode mode) {
+        Exchange exchange = exchanges.findByCodeForUpdate(code)
+                .orElseThrow(() -> ApiException.notFound("Exchange not found"));
+        if (!hostTokens.matches(hostToken, exchange.getHostTokenHash())) {
+            throw ApiException.forbidden("Only the host of this exchange can change it");
+        }
+        if (exchange.getMode() != mode) {
+            exchange.setMode(mode);
+            exchanges.saveAndFlush(exchange);
+            events.publishEvent(new ExchangeModeChangedEvent(exchange.getCode(), mode));
+        }
         return describe(exchange, true);
     }
 

@@ -12,9 +12,11 @@ export function claimability(
   viewerName: string,
   viewerHasClaimed: boolean,
   exchangeOpen: boolean,
+  claimingOpen: boolean,
 ): Claimability {
   if (book.claimed) return { state: 'disabled', reason: '' }
   if (!exchangeOpen) return { state: 'disabled', reason: 'This exchange is closed' }
+  if (!claimingOpen) return { state: 'disabled', reason: "Claiming hasn't started yet" }
   if (viewerHasClaimed) return { state: 'disabled', reason: "You've already claimed a book" }
   if (book.submitterName.trim().toLowerCase() === viewerName.trim().toLowerCase()) {
     return { state: 'disabled', reason: 'You brought this one' }

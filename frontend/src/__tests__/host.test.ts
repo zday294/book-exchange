@@ -10,7 +10,7 @@ import { PARTICIPANT_STORAGE_KEY } from '../stores/participant'
 
 const exchange = {
   code: 'K7M2PXA', name: 'Office Christmas', description: 'Bring a book under $20', organizerName: 'Zach',
-  listed: true, status: 'OPEN', bookCount: 0, claimedCount: 0, createdAt: '2026-11-24T14:02:03Z', isHost: true,
+  listed: true, status: 'OPEN', mode: 'SUBMIT', bookCount: 0, claimedCount: 0, createdAt: '2026-11-24T14:02:03Z', isHost: true,
 }
 
 function json(body: unknown, status = 200) {

@@ -77,21 +77,24 @@ watch(
   () => load({ force: true }),
 )
 
-function onSettingsSaved(updated: Exchange) {
-  exchange.value = updated // show the new name and description straight away
+function onHostChange(updated: Exchange) {
+  exchange.value = updated // show a change the host just made (name, mode, ...) straight away
   rememberExchange({ code: updated.code, name: updated.name })
 }
 
 const myBook = computed(() => books.value.find((b) => b.viewerIsClaimer))
 const exchangeOpen = computed(() => exchange.value?.status === 'OPEN')
 
+const submitting = computed(() => exchangeOpen.value && exchange.value?.mode === 'SUBMIT')
+const claiming = computed(() => exchangeOpen.value && exchange.value?.mode === 'CLAIM')
+
 function claimabilityOf(book: Book) {
-  return claimability(book, participant.name, !!myBook.value, exchangeOpen.value)
+  return claimability(book, participant.name, !!myBook.value, exchangeOpen.value, claiming.value)
 }
 
 // --- claiming: ask first (it can't be undone), then claim, then show what was won ---
 const pending = ref<Book | null>(null) // the present waiting for a "yes"
-const claiming = ref(false)
+const claimInFlight = ref(false)
 const revealed = ref<Book | null>(null) // what the claimer just won
 const notice = ref('')
 
@@ -102,8 +105,8 @@ function askToClaim(book: Book) {
 
 async function confirmClaim() {
   const book = pending.value
-  if (!book || claiming.value) return
-  claiming.value = true
+  if (!book || claimInFlight.value) return
+  claimInFlight.value = true
   try {
     const won = await claimBook(props.exchangeCode, book.id, participant.name)
     pending.value = null
@@ -114,7 +117,7 @@ async function confirmClaim() {
     pending.value = null
     notice.value = claimFailureMessage(e) // e.g. someone else got there first
   } finally {
-    claiming.value = false
+    claimInFlight.value = false
     load({ force: true }) // whatever happened, show the true state of the pile
   }
 }
@@ -146,6 +149,11 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
       <p class="counts" data-test="counts">
         {{ books.length }} {{ books.length === 1 ? 'present' : 'presents' }} · {{ claimedCount }} taken
       </p>
+      <p class="mode-banner" :class="exchange.mode.toLowerCase()" data-test="mode-banner">
+        <template v-if="!exchangeOpen">This exchange is closed.</template>
+        <template v-else-if="exchange.mode === 'SUBMIT'">Submit mode: add your book!</template>
+        <template v-else>Claim mode: pick a present!</template>
+      </p>
       <p class="status card" data-test="my-status">
         <strong>{{ participant.name }}</strong
         >,
@@ -172,8 +180,11 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
     </p>
 
     <p v-if="books.length === 0" class="empty card" data-test="empty">
-      No presents yet — add one!
-      <RouterLink class="button" :to="{ name: 'submit-book', params: { exchangeCode } }">Add a book</RouterLink>
+      <template v-if="submitting">
+        No presents yet — add one!
+        <RouterLink class="button" :to="{ name: 'submit-book', params: { exchangeCode } }">Add a book</RouterLink>
+      </template>
+      <template v-else>No presents were brought to this exchange.</template>
     </p>
 
     <template v-else>
@@ -186,18 +197,18 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
           @claim="askToClaim"
         />
       </ul>
-      <p class="add">
+      <p v-if="submitting" class="add">
         <RouterLink :to="{ name: 'submit-book', params: { exchangeCode } }">Add a book</RouterLink>
       </p>
     </template>
 
     <!-- Only when the server confirms this browser holds the host token. -->
-    <HostSection v-if="exchange.isHost" :exchange="exchange" @saved="onSettingsSaved" />
+    <HostSection v-if="exchange.isHost" :exchange="exchange" @saved="onHostChange" />
 
     <ConfirmClaimDialog
       v-if="pending"
       :submitter-name="pending.submitterName"
-      :busy="claiming"
+      :busy="claimInFlight"
       @confirm="confirmClaim"
       @cancel="pending = null"
     />
@@ -216,9 +227,26 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
   color: var(--color-muted);
   margin: 0.25rem 0 0.75rem;
 }
-.status {
+.mode-banner {
   display: inline-block;
-  margin: 0 0 1rem;
+  margin: 0.25rem 0 0.75rem;
+  padding: 0.25rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 600;
+  background: #e7e2d6;
+  color: var(--color-muted);
+}
+.mode-banner.submit {
+  background: #dff1e6;
+  color: var(--color-green);
+}
+.mode-banner.claim {
+  background: #f8e1e3;
+  color: var(--color-red);
+}
+.status {
+  width: fit-content;
+  margin: 0 auto 1rem;
   padding: 0.5rem 1rem;
 }
 .status a {

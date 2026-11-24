@@ -3,10 +3,12 @@ package com.bookexchange.repository;
 import com.bookexchange.domain.Exchange;
 import com.bookexchange.domain.ExchangeStatus;
 import com.bookexchange.exchange.ExchangeSummary;
+import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +16,20 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ExchangeRepository extends JpaRepository<Exchange, Long> {
 
     Optional<Exchange> findByCode(String code);
+
+    /**
+     * Loads the exchange with a shared row lock ({@code FOR SHARE}), held until the transaction ends. Submitting
+     * and claiming use this so a host switching the mode at the same moment can't slip in half way: the
+     * switch waits for them (or they wait for it and then see the new mode).
+     */
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select e from Exchange e where e.code = :code")
+    Optional<Exchange> findByCodeForShare(@Param("code") String code);
+
+    /** Loads the exchange with an exclusive row lock ({@code FOR UPDATE}); used when the host changes it. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select e from Exchange e where e.code = :code")
+    Optional<Exchange> findByCodeForUpdate(@Param("code") String code);
 
     /**
      * The public list: only exchanges marked listed. Open ones come first, then closed ones; within each,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Exchange } from '../api/exchanges'
+import HostMode from './HostMode.vue'
 import HostSettings from './HostSettings.vue'
 
 /**
@@ -17,6 +18,7 @@ defineEmits<{ saved: [exchange: Exchange] }>()
     <h2 id="host-title">Host controls</h2>
     <p class="intro">Only you can see this. Anyone with the exchange's code can still join.</p>
 
+    <HostMode :exchange="exchange" @saved="$emit('saved', $event)" />
     <HostSettings :exchange="exchange" @saved="$emit('saved', $event)" />
     <!-- More host blocks go here, each with its own heading. -->
   </section>

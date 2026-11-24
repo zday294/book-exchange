@@ -8,6 +8,8 @@ export interface Exchange {
   organizerName?: string
   listed: boolean
   status: 'OPEN' | 'CLOSED'
+  /** SUBMIT: people submit books, nobody can claim. CLAIM: people claim books, nobody can submit. */
+  mode: 'SUBMIT' | 'CLAIM'
   bookCount: number
   claimedCount: number
   createdAt: string
@@ -20,6 +22,14 @@ export interface Exchange {
 /** Sends the saved host token (if any) so the answer can say whether this browser is the host. */
 export const getExchange = (code: string) =>
   api<Exchange>(`/api/exchanges/${encodeURIComponent(code)}`, { headers: hostHeaders(code) })
+
+/** Host only: switch between submit mode and claim mode. */
+export const setExchangeMode = (code: string, mode: Exchange['mode']) =>
+  api<Exchange>(`/api/exchanges/${encodeURIComponent(code)}/mode`, {
+    method: 'PUT',
+    body: { mode },
+    headers: hostHeaders(code),
+  })
 
 /** The settings a host can change; leave a field out to keep it, send '' as description to remove it. */
 export interface UpdateExchangeRequest {

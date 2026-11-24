@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.bookexchange.book.BookClaimedEvent;
 import com.bookexchange.domain.BookSubmission;
 import com.bookexchange.domain.Exchange;
+import com.bookexchange.domain.ExchangeMode;
 import com.bookexchange.domain.ExchangeStatus;
 import com.bookexchange.repository.BookSubmissionRepository;
 import com.bookexchange.repository.ExchangeRepository;
@@ -56,7 +57,15 @@ class ClaimBookTest extends AbstractIntegrationTest {
     void setUp() {
         jdbc.update("delete from book_submission");
         EVENTS.clear();
-        exchange = exchanges.findByCode("CLAIMEX").orElseGet(() -> exchanges.save(new Exchange("CLAIMEX", "Claim")));
+        exchange = claimingExchange("CLAIMEX", "Claim");
+    }
+
+    /** An exchange that is in claim mode (claiming is only allowed there). */
+    private Exchange claimingExchange(String code, String name) {
+        Exchange e = exchanges.findByCode(code).orElseGet(() -> new Exchange(code, name));
+        e.setMode(ExchangeMode.CLAIM);
+        e.setStatus(ExchangeStatus.OPEN);
+        return exchanges.save(e);
     }
 
     private BookSubmission book(String submitter, String title) {
@@ -152,7 +161,7 @@ class ClaimBookTest extends AbstractIntegrationTest {
 
     @Test
     void bookFromAnotherExchangeIs404() throws Exception {
-        Exchange other = exchanges.findByCode("CLAIMOTH").orElseGet(() -> exchanges.save(new Exchange("CLAIMOTH", "O")));
+        Exchange other = claimingExchange("CLAIMOTH", "O");
         BookSubmission b = books.save(new BookSubmission(other, "Zed", "Elsewhere", URL, "stars"));
         claim("CLAIMEX", b.getId(), "{\"participantName\":\"Alex\"}").andExpect(status().isNotFound());
     }
@@ -169,7 +178,7 @@ class ClaimBookTest extends AbstractIntegrationTest {
 
     @Test
     void sameNameCanClaimInAnotherExchange() throws Exception {
-        Exchange other = exchanges.findByCode("CLAIMOTH").orElseGet(() -> exchanges.save(new Exchange("CLAIMOTH", "O")));
+        Exchange other = claimingExchange("CLAIMOTH", "O");
         BookSubmission here = book("Zach", "Here");
         BookSubmission there = books.save(new BookSubmission(other, "Zed", "There", URL, "stars"));
         claim(here, "Alex").andExpect(status().isOk());

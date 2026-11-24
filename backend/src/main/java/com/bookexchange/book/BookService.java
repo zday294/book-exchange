@@ -2,6 +2,7 @@ package com.bookexchange.book;
 
 import com.bookexchange.domain.BookSubmission;
 import com.bookexchange.domain.Exchange;
+import com.bookexchange.domain.ExchangeMode;
 import com.bookexchange.domain.ExchangeStatus;
 import com.bookexchange.error.ApiException;
 import com.bookexchange.repository.BookSubmissionRepository;
@@ -17,6 +18,10 @@ public class BookService {
 
     static final String ALREADY_SUBMITTED = "You have already submitted a book to this exchange";
     static final String BOOK_ALREADY_CLAIMED = "This book has already been claimed";
+    static final String NOT_ACCEPTING_BOOKS =
+            "This exchange has moved on to claiming, so no more books can be submitted";
+    static final String NOT_CLAIMING_YET =
+            "Claiming hasn't started yet; the host will open it when everyone has submitted their book";
     static final String YOU_ALREADY_CLAIMED = "You have already claimed a book in this exchange";
     static final String OWN_BOOK = "You can't claim a book you submitted yourself";
     private static final String ONE_CLAIM_INDEX = "uq_book_submission_one_claim_per_person";
@@ -35,10 +40,15 @@ public class BookService {
 
     @Transactional
     public BookSubmission submit(String exchangeCode, SubmitBookRequest request) {
-        Exchange exchange = exchanges.findByCode(exchangeCode)
+        // Share-lock the exchange for the whole transaction: if the host switches the mode at the same
+        // moment, one of the two waits for the other, so a book can never be saved after claiming began.
+        Exchange exchange = exchanges.findByCodeForShare(exchangeCode)
                 .orElseThrow(() -> ApiException.notFound("Exchange not found"));
         if (exchange.getStatus() != ExchangeStatus.OPEN) {
             throw ApiException.conflict("This exchange is closed and no longer accepts books");
+        }
+        if (exchange.getMode() != ExchangeMode.SUBMIT) {
+            throw ApiException.conflict(NOT_ACCEPTING_BOOKS);
         }
 
         if (books.existsByExchangeAndSubmitter(exchange.getId(), request.submitterName())) {
@@ -83,11 +93,15 @@ public class BookService {
      */
     @Transactional
     public BookView claim(String exchangeCode, Long bookId, String participantName) {
-        Exchange exchange = findExchange(exchangeCode);
+        Exchange exchange = exchanges.findByCodeForShare(exchangeCode) // see submit(): the host can't switch mid-way
+                .orElseThrow(() -> ApiException.notFound("Exchange not found"));
         BookSubmission book = books.findByIdAndExchangeId(bookId, exchange.getId())
                 .orElseThrow(() -> ApiException.notFound("Book not found"));
         if (exchange.getStatus() != ExchangeStatus.OPEN) {
             throw ApiException.conflict("This exchange is closed and no longer accepts claims");
+        }
+        if (exchange.getMode() != ExchangeMode.CLAIM) {
+            throw ApiException.conflict(NOT_CLAIMING_YET);
         }
         if (book.getSubmitterName().equalsIgnoreCase(participantName)) {
             throw ApiException.conflict(OWN_BOOK);
