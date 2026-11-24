@@ -17,6 +17,10 @@ public interface BookSubmissionRepository extends JpaRepository<BookSubmission, 
             @org.springframework.data.repository.query.Param("exchangeId") Long exchangeId,
             @org.springframework.data.repository.query.Param("name") String name);
 
+    long countByExchangeId(Long exchangeId);
+
+    long countByExchangeIdAndClaimedByNameIsNotNull(Long exchangeId);
+
     boolean existsByExchangeIdAndClaimedByNameIgnoreCase(Long exchangeId, String claimedByName);
 
     /**

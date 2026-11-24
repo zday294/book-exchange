@@ -25,6 +25,11 @@ cd backend
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated browser origins allowed to call `/api/**` |
 
 ## API
+### Create / get an exchange
+- `POST /api/exchanges` with `{ "name", "description"?, "organizerName", "listed"? }` -> `201` + `Location`, the exchange is `OPEN` and has a generated 7-character `code` (alphabet without `0 O 1 I L`). `listed` defaults to `true`. Validation errors (`400`) name each field. Code collisions are retried automatically (check + unique index).
+- `GET /api/exchanges/{exchangeCode}` -> name, description, organizer, listed, status, `bookCount`, `claimedCount`, `createdAt`; `404` for an unknown code (private exchanges are found this way too).
+- Not yet: closing/editing/organizer-only actions (need sign-in, #17), and the public list (#13).
+
 ### Submit a book
 `POST /api/exchanges/{exchangeCode}/books`
 ```json
