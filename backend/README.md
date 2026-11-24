@@ -89,7 +89,7 @@ An exchange is in exactly one **mode**, and the two are exclusive (the backend e
 - `201 Created` with a `Location` header and the submitted book (`claimed: false`).
 - `400` for validation problems (all reported together), `404` unknown exchange, `409` if the exchange is closed or the same person (name, case-insensitive, ignoring surrounding spaces) already submitted a book to it. One book per person per exchange is enforced by a unique index; the same name can submit to a different exchange.
 - Wrapping paper keys: `candy-cane`, `snowflake`, `holly`, `stars`, `plaid`, `polka-dot`, `sugar-cookie`, `christmas-tree`, `fireplace`, `sleigh`.
-- A cover lookup is triggered after the book is saved, off the request thread; its failure never affects the response. The real lookup is a separate issue.
+- A cover lookup is triggered after the book is saved, off the request thread; its failure never affects the response (see "Cover lookup" below).
 
 ### List / get books
 - `GET /api/exchanges/{exchangeCode}/books` (oldest first) and `GET /api/exchanges/{exchangeCode}/books/{bookId}`.
@@ -143,3 +143,22 @@ Never edit a changeset that has been merged; Liquibase checksums them and startu
 
 ## Errors
 All errors are JSON: `{ "error": "...", "details": [ ... ] }`. Unexpected errors return a generic message; details go to the log only.
+
+## Cover lookup
+After a book is saved, `IsbnCoverLookup` runs in the background (`@Async`, after the commit) and fills `book_submission.asin` and `cover_image_url`:
+
+1. The ASIN is read from the link (`/dp/`, `/gp/product/`, `/gp/aw/d/`, `/gp/offer-listing/`, `/exec/obidos/ASIN/`, `/product/`). For a short link (`a.co`, `amzn.to`) the redirects are followed until a URL with an ASIN appears; the Amazon product page itself is never downloaded.
+2. If the ASIN is a valid ISBN-10 (print books; checksum checked), the cover comes from Open Library (`https://covers.openlibrary.org/b/isbn/<isbn>-L.jpg`). The lookup only stores the URL after confirming the image really exists. The browser loads the image from Open Library.
+3. Otherwise (a non-book product such as `B08N5WRWNW`, no cover at the source, or any failure) `cover_image_url` stays empty and the page shows a placeholder with the title. Amazon's `og:image` is deliberately not used: it is blocked often and may breach their terms.
+
+A failed lookup never affects the submission, and it records nothing else about the book. The cover is only revealed on claim (see the visibility table above).
+
+**Safety rules**, because the server fetches addresses people typed in (`GuardedCoverHttp`): only allow-listed hosts (Amazon hosts for short links, `covers.openlibrary.org` and `archive.org` for images), checked again on every redirect (at most 3, followed by hand); https on port 443 only; no credentials in the address; a host that resolves to a loopback, private, link-local, carrier-grade-NAT or unique-local address is refused; an 8 second limit per step including the download; a 2 MB size cap; the response must be an `image/*` type. Not covered: DNS changing between our check and the connection (a host on the allow-list would have to be hostile).
+
+| Setting | Environment variable | Default |
+|---|---|---|
+| `app.cover.enabled` | `COVER_LOOKUP_ENABLED` | `true` (`false`: books never get covers, nothing is fetched) |
+| `app.cover.image-url-template` | `COVER_IMAGE_URL_TEMPLATE` | Open Library (`%s` is the ISBN-10) |
+| `app.cover.allowed-image-hosts` | `COVER_ALLOWED_IMAGE_HOSTS` | `covers.openlibrary.org,archive.org` |
+
+Tests never reach the network: the other integration tests switch the lookup off, and the cover tests stub the HTTP layer (`CoverHttp`). Not done yet: a way to re-run the lookup for books that have no cover (a maintenance task), and storing the images ourselves instead of hot-linking.

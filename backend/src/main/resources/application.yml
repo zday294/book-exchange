@@ -58,3 +58,13 @@ app:
   amazon:
     # Hosts a submitted book link may use (subdomains such as www.amazon.com are allowed too).
     allowed-hosts: ${AMAZON_ALLOWED_HOSTS:amazon.com,amzn.to,a.co}
+  cover:
+    # Finds each book's cover after it is submitted (see backend/README.md). Switch off with COVER_LOOKUP_ENABLED=false.
+    enabled: ${COVER_LOOKUP_ENABLED:true}
+    image-url-template: ${COVER_IMAGE_URL_TEMPLATE:https://covers.openlibrary.org/b/isbn/%s-L.jpg}
+    # covers.openlibrary.org redirects to archive.org's servers.
+    allowed-image-hosts: ${COVER_ALLOWED_IMAGE_HOSTS:covers.openlibrary.org,archive.org}
+    connect-timeout-ms: 3000
+    total-timeout-ms: 8000
+    max-image-bytes: 2000000
+    max-redirects: 3
