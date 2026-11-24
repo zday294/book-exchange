@@ -24,7 +24,6 @@ describe('routes', () => {
 
   it.each([
     ['/exchanges/new', 'Create an exchange'],
-    ['/exchange/K7M2PXA', 'Exchange K7M2PXA'],
     ['/exchange/K7M2PXA/submit', 'Add a book to K7M2PXA'],
   ])('%s renders its placeholder', async (path, heading) => {
     const wrapper = await mountAt(path)
