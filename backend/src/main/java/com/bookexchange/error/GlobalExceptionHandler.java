@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -30,7 +31,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         List<String> details = ex.getBindingResult().getFieldErrors().stream()
                 .map(GlobalExceptionHandler::describe)
                 .toList();
-        return ResponseEntity.status(status).body(new ApiError("Validation failed", details));
+        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON)
+                .body(new ApiError("Validation failed", details));
     }
 
     @Override
@@ -42,19 +44,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         if (statusCode.is4xxClientError() && ex instanceof org.springframework.http.converter.HttpMessageNotReadableException) {
             message = "Malformed request body";
         }
-        return ResponseEntity.status(statusCode).headers(headers).body(ApiError.of(message));
+        return ResponseEntity.status(statusCode).headers(headers).contentType(MediaType.APPLICATION_JSON)
+                .body(ApiError.of(message));
     }
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApiException(ApiException ex) {
-        return ResponseEntity.status(ex.getStatus()).body(ApiError.of(ex.getMessage()));
+        // Always JSON, even when the caller asked for something else (an event stream, for example).
+        return ResponseEntity.status(ex.getStatus()).contentType(MediaType.APPLICATION_JSON)
+                .body(ApiError.of(ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
         // Details go to the log, never to the client.
         log.error("Unhandled exception", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON)
                 .body(ApiError.of("Internal server error"));
     }
 

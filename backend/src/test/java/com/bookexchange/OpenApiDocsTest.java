@@ -126,6 +126,17 @@ class OpenApiDocsTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void liveUpdatesEndpointIsDocumented() throws Exception {
+        String get = "$.paths['/api/exchanges/{exchangeCode}/events'].get";
+        mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+                .andExpect(jsonPath(get + ".summary").isNotEmpty())
+                .andExpect(jsonPath(get + ".description").value(org.hamcrest.Matchers.containsString("book-claimed")))
+                .andExpect(jsonPath(get + ".responses['200'].content['text/event-stream']").exists())
+                .andExpect(jsonPath(get + ".responses['404']").exists())
+                .andExpect(jsonPath(get + ".responses['503']").exists());
+    }
+
+    @Test
     void errorResponsesUseTheSharedErrorSchema() throws Exception {
         String spec = spec();
         assertThat(spec).contains("#/components/schemas/ApiError");

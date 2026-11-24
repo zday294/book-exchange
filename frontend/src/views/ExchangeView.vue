@@ -10,13 +10,17 @@ import HostSection from '../components/HostSection.vue'
 import TreeIllustration from '../components/TreeIllustration.vue'
 import { claimability, claimFailureMessage } from '../lib/claim'
 import { forgetExchange, rememberExchange } from '../lib/lastExchange'
+import { openLiveUpdates, type LiveConnection } from '../lib/liveUpdates'
 import { useParticipantStore } from '../stores/participant'
 
 const props = defineProps<{ exchangeCode: string }>()
 const participant = useParticipantStore()
 
-// Until live updates (story 15) exist, the page simply re-reads the pile every few seconds.
+// Live updates (Server-Sent Events) tell this page the moment something changes. While that connection is
+// up, polling is switched off; if it drops (or the browser can't do it), the page falls back to re-reading
+// the pile every few seconds.
 const REFRESH_MS = 5000
+const RECONCILE_MS = 150
 
 const state = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading')
 const exchange = ref<Exchange | null>(null)
@@ -25,6 +29,9 @@ const books = ref<Book[]>([])
 let run = 0 // each load gets a number; only the newest load may update the page
 let inFlight = false
 let timer: ReturnType<typeof setInterval> | undefined
+let live: LiveConnection | null = null
+let liveUp = false // true while the live connection is open
+let reconcileTimer: ReturnType<typeof setTimeout> | undefined
 
 async function load(options: { force?: boolean } = {}) {
   if (inFlight && !options.force) return
@@ -56,17 +63,81 @@ function restart() {
   state.value = 'loading'
   exchange.value = null
   books.value = []
+  clearTimeout(reconcileTimer)
+  connectLive() // a different exchange needs its own stream
   load({ force: true })
+}
+
+/**
+ * After applying a live event in place (so it shows instantly), re-read the true state shortly afterwards.
+ * This corrects anything the event didn't carry (a claimer's own book link), and several events in a row
+ * cost one read.
+ */
+function reconcileSoon() {
+  clearTimeout(reconcileTimer)
+  reconcileTimer = setTimeout(() => load({ force: true }), RECONCILE_MS)
+}
+
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+
+function connectLive() {
+  live?.close()
+  liveUp = false
+  live = openLiveUpdates(props.exchangeCode, {
+    onConnected: () => (liveUp = true),
+    onDisconnected: () => (liveUp = false),
+    onReconnected: () => {
+      liveUp = true
+      load({ force: true }) // events sent while the connection was down were missed
+    },
+    onBookAdded(e) {
+      if (books.value.some((b) => b.id === e.id)) return
+      books.value = [
+        ...books.value,
+        { id: e.id, submitterName: e.submitterName, wrappingPaper: e.wrappingPaper, claimed: false, viewerIsClaimer: false },
+      ]
+      if (exchange.value) exchange.value = { ...exchange.value, bookCount: exchange.value.bookCount + 1 }
+      reconcileSoon()
+    },
+    onBookClaimed(e) {
+      const before = books.value.find((b) => b.id === e.id)
+      if (before?.claimed && before.amazonUrl) return // my own claim, already shown with its link
+      books.value = books.value.map((b) =>
+        b.id === e.id
+          ? {
+              ...b,
+              claimed: true,
+              claimedByName: e.claimedByName,
+              claimedAt: e.claimedAt,
+              bookTitle: e.bookTitle,
+              coverImageUrl: e.coverImageUrl,
+              viewerIsClaimer: sameName(e.claimedByName, participant.name),
+            }
+          : b,
+      )
+      if (exchange.value && before && !before.claimed) {
+        exchange.value = { ...exchange.value, claimedCount: exchange.value.claimedCount + 1 }
+      }
+      reconcileSoon()
+    },
+    onModeChanged(e) {
+      if (exchange.value) exchange.value = { ...exchange.value, mode: e.mode }
+      reconcileSoon()
+    },
+  })
 }
 
 onMounted(() => {
   load({ force: true })
+  connectLive()
   timer = setInterval(() => {
-    if (!document.hidden && state.value === 'ready') load()
+    if (!document.hidden && state.value === 'ready' && !liveUp) load()
   }, REFRESH_MS)
 })
 onBeforeUnmount(() => {
   clearInterval(timer)
+  clearTimeout(reconcileTimer)
+  live?.close()
   run++ // ignore anything still in flight
 })
 

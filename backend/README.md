@@ -38,6 +38,20 @@ There is no sign-in yet, so the host is whoever holds the **host token**:
 - `PATCH /api/exchanges/{code}` (host only) changes `name`, `description`, `organizerName` and/or `listed`. Fields left out are unchanged; an empty `description` removes it; validation is the same as at creation (`400` with per-field `details`). `404` for an unknown exchange.
 - CORS allows the `PATCH` method and the `X-Host-Token` header.
 
+### Live updates
+`GET /api/exchanges/{code}/events` is a long-lived **Server-Sent Events** stream (`text/event-stream`) for one exchange; browsers open it with `EventSource`. `404` for an unknown exchange, `503` when the server already holds its maximum number of connections.
+- `ready`: the connection is open (sent at once).
+- `book-added`: `{id, submitterName, wrappingPaper}`, a new wrapped present. Nothing about the book.
+- `book-claimed`: `{id, claimedByName, claimedAt, bookTitle, coverImageUrl?}`. Public once a book is claimed. **Never the book link**; that stays in the claimer's own response.
+- `mode-changed`: `{mode}`.
+- A comment line (`: keep-alive`) every 15 seconds keeps proxies from closing an idle connection and lets the server notice a browser that went away.
+- Events are sent only **after the database transaction commits**, so a rejected or rolled-back request announces nothing. Events of one exchange never reach watchers of another. Events sent while a browser was disconnected are **not replayed**: the front end re-reads the pile when it reconnects.
+- Connections last at most 30 minutes (the browser reconnects by itself), and all are closed as soon as the application starts shutting down, so a deploy is not held up by open streams.
+
+Settings (environment variables): `EVENTS_HEARTBEAT_MILLIS` (15000), `EVENTS_MAX_SUBSCRIBERS` (1000, roughly one per open browser page), `EVENTS_CONNECTION_MINUTES` (30).
+
+**Limits to know about for deployment (#20-#22):** connections are held in the memory of one server process, so live updates reach only the people connected to the same instance; run a single backend instance, or add a shared mechanism (for example Postgres `LISTEN/NOTIFY`) before scaling out. The hosting platform's request timeout must allow long-lived requests (for Cloud Run, raise the request timeout; the browser reconnects when it ends, so the cost of a short timeout is only more reconnects).
+
 ### Submit mode and claim mode
 An exchange is in exactly one **mode**, and the two are exclusive (the backend enforces it; the UI only mirrors it):
 - **`SUBMIT`** (the default for every exchange, including existing ones): participants can submit books. **Claiming returns `409`** ("Claiming hasn't started yet; the host will open it when everyone has submitted their book").
