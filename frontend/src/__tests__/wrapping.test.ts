@@ -8,8 +8,8 @@ import WrappingPaperPicker from '../wrapping/WrappingPaperPicker.vue'
 import { DEFAULT_PAPER, PAPER_KEYS, WRAPPING_PAPERS, resolvePaper } from '../wrapping/papers'
 
 describe('paper definitions', () => {
-  it('defines at least six distinct papers with keys, labels and colors', () => {
-    expect(WRAPPING_PAPERS.length).toBeGreaterThanOrEqual(6)
+  it('defines ten distinct papers (two rows of five) with keys, labels and colors', () => {
+    expect(WRAPPING_PAPERS).toHaveLength(10)
     expect(new Set(PAPER_KEYS).size).toBe(WRAPPING_PAPERS.length)
     expect(new Set(WRAPPING_PAPERS.map((p) => p.pattern)).size).toBe(WRAPPING_PAPERS.length)
     for (const p of WRAPPING_PAPERS) {
@@ -63,9 +63,18 @@ describe('WrappedPresent', () => {
   it('shortens long names on the tag but keeps the full name in the description', () => {
     const long = 'Bartholomew Featherstonehaugh'
     const w = mount(WrappedPresent, { props: { paper: 'holly', tag: long } })
-    expect(w.find('text').text().length).toBeLessThanOrEqual(10)
-    expect(w.find('text').text().endsWith('…')).toBe(true)
+    const lines = w.findAll('text tspan').map((t) => t.text())
+    expect(lines.length).toBeLessThanOrEqual(2)
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(12)
+    expect(lines.join(' ')).toContain('…')
     expect(w.get('svg').attributes('aria-label')).toContain(long)
+  })
+
+  it('puts a longer name on two lines, breaking between words', () => {
+    const w = mount(WrappedPresent, { props: { paper: 'holly', tag: 'Christmas tree' } })
+    expect(w.findAll('text tspan').map((t) => t.text())).toEqual(['Christmas', 'tree'])
+    const one = mount(WrappedPresent, { props: { paper: 'holly', tag: 'Alexandria' } })
+    expect(one.findAll('text tspan').map((t) => t.text())).toEqual(['Alexandria'])
   })
 
   it('does not break on an unknown key and uses the default paper', () => {
@@ -102,7 +111,8 @@ describe('WrappingPaperPicker', () => {
   it('puts each paper\'s name on its present\'s tag', () => {
     const w = mount(WrappingPaperPicker)
     const tags = w.findAll('svg text').map((t) => t.text())
-    expect(tags).toEqual(WRAPPING_PAPERS.map((p) => p.label))
+    // Longer names wrap onto two lines, so compare without spaces.
+    expect(tags.map((t) => t.replace(/\s/g, ''))).toEqual(WRAPPING_PAPERS.map((p) => p.label.replace(/\s/g, '')))
   })
 
   it('marks the current value as selected', () => {

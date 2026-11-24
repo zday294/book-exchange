@@ -38,7 +38,7 @@ cd backend
 ```
 - `201 Created` with a `Location` header and the submitted book (`claimed: false`).
 - `400` for validation problems (all reported together), `404` unknown exchange, `409` if the exchange is closed or the same person (name, case-insensitive, ignoring surrounding spaces) already submitted a book to it. One book per person per exchange is enforced by a unique index; the same name can submit to a different exchange.
-- Wrapping paper keys: `candy-cane`, `snowflake`, `holly`, `stars`, `plaid`, `polka-dot`.
+- Wrapping paper keys: `candy-cane`, `snowflake`, `holly`, `stars`, `plaid`, `polka-dot`, `sugar-cookie`, `christmas-tree`, `fireplace`, `sleigh`.
 - A cover lookup is triggered after the book is saved, off the request thread; its failure never affects the response. The real lookup is a separate issue.
 
 ### List / get books

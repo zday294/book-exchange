@@ -42,8 +42,19 @@ legend {
 }
 .options {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  /* Ten papers: two rows of five on a normal screen, fewer columns on narrow ones. */
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
+}
+@media (max-width: 52rem) {
+  .options {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 32rem) {
+  .options {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 .option {
   position: relative;

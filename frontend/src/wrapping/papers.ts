@@ -3,7 +3,7 @@
  * so these keys MUST match backend/src/main/java/com/bookexchange/book/WrappingPapers.java
  * (a test compares the two lists).
  */
-export type PatternType = 'stripes' | 'snowflakes' | 'holly' | 'stars' | 'plaid' | 'dots'
+export type PatternType = 'stripes' | 'snowflakes' | 'holly' | 'stars' | 'plaid' | 'dots' | 'cookies' | 'trees' | 'fireplace' | 'sleighs'
 
 export interface WrappingPaper {
   key: string
@@ -43,6 +43,22 @@ export const WRAPPING_PAPERS: readonly WrappingPaper[] = [
   {
     key: 'polka-dot', label: 'Polka dot', pattern: 'dots',
     base: '#1f7a7a', accent: '#ffffff', accent2: '#f4c542', ribbon: '#c8202f', ribbonShade: '#8f1520',
+  },
+  {
+    key: 'sugar-cookie', label: 'Sugar cookie', pattern: 'cookies',
+    base: '#f3dfb6', accent: '#e2b878', accent2: '#c8202f', ribbon: '#c8202f', ribbonShade: '#8f1520',
+  },
+  {
+    key: 'christmas-tree', label: 'Christmas tree', pattern: 'trees',
+    base: '#dcebf2', accent: '#1f6b45', accent2: '#c8202f', ribbon: '#c8202f', ribbonShade: '#8f1520',
+  },
+  {
+    key: 'fireplace', label: 'Fireplace', pattern: 'fireplace',
+    base: '#8a3b2a', accent: '#f08a24', accent2: '#ffd23f', ribbon: '#c8962e', ribbonShade: '#946b17',
+  },
+  {
+    key: 'sleigh', label: 'Sleigh', pattern: 'sleighs',
+    base: '#43286b', accent: '#c8202f', accent2: '#f4c542', ribbon: '#f4c542', ribbonShade: '#b8901a',
   },
 ]
 
