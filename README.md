@@ -29,7 +29,7 @@ Postgres listens on `localhost:5433` (database, user and password are all `booke
 
 **Backend** (needs Java 21): see [backend/README.md](backend/README.md).
 
-Front end instructions will be added when that issue is completed.
+**Front end** (needs Node 22+): see [frontend/README.md](frontend/README.md). `npm run dev` serves it on http://localhost:5173 and proxies `/api` to the backend.
 
 ## Working on it
 - Pick an issue; each lists the issues it depends on.
