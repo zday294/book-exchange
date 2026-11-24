@@ -129,6 +129,18 @@ describe('API proxy', () => {
     expect(upstream.lastRequest.headers['content-type']).toBe('application/json')
   })
 
+  it('forwards PATCH and the host token header', async () => {
+    const res = await fetch(base + '/api/exchanges/ABC1234', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Host-Token': 'secret-token' },
+      body: '{"name":"New"}',
+    })
+    expect(res.status).toBe(201)
+    expect(upstream.lastRequest.method).toBe('PATCH')
+    expect(upstream.lastRequest.headers['x-host-token']).toBe('secret-token')
+    expect(upstream.lastRequest.body).toBe('{"name":"New"}')
+  })
+
   it("does not forward the browser's Origin header (it would trip the backend's CORS check)", async () => {
     await fetch(base + '/api/anything', { method: 'POST', headers: { Origin: 'https://app.example.com' }, body: '{}' })
     expect(upstream.lastRequest.headers.origin).toBeUndefined()

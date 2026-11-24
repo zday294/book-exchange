@@ -6,6 +6,7 @@ import { getExchange, type Exchange } from '../api/exchanges'
 import BookPresent from '../components/BookPresent.vue'
 import ClaimedRevealDialog from '../components/ClaimedRevealDialog.vue'
 import ConfirmClaimDialog from '../components/ConfirmClaimDialog.vue'
+import HostSection from '../components/HostSection.vue'
 import TreeIllustration from '../components/TreeIllustration.vue'
 import { claimability, claimFailureMessage } from '../lib/claim'
 import { forgetExchange, rememberExchange } from '../lib/lastExchange'
@@ -75,6 +76,11 @@ watch(
   () => participant.name,
   () => load({ force: true }),
 )
+
+function onSettingsSaved(updated: Exchange) {
+  exchange.value = updated // show the new name and description straight away
+  rememberExchange({ code: updated.code, name: updated.name })
+}
 
 const myBook = computed(() => books.value.find((b) => b.viewerIsClaimer))
 const exchangeOpen = computed(() => exchange.value?.status === 'OPEN')
@@ -184,6 +190,9 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
         <RouterLink :to="{ name: 'submit-book', params: { exchangeCode } }">Add a book</RouterLink>
       </p>
     </template>
+
+    <!-- Only when the server confirms this browser holds the host token. -->
+    <HostSection v-if="exchange.isHost" :exchange="exchange" @saved="onSettingsSaved" />
 
     <ConfirmClaimDialog
       v-if="pending"

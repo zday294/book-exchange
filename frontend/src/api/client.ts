@@ -24,11 +24,15 @@ export class ApiError extends Error {
 const baseUrl = (): string => (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 /** Thin fetch wrapper: JSON in/out, adds X-Participant-Name when a name is saved, throws ApiError. */
-export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+export async function api<T>(
+  path: string,
+  options: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
+): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
   const name = useParticipantStore().name
   if (name) headers['X-Participant-Name'] = name
+  Object.assign(headers, options.headers)
 
   let response: Response
   try {
