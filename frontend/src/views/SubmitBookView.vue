@@ -3,6 +3,7 @@ import { nextTick, onMounted, reactive, ref } from 'vue'
 import { ApiError } from '../api/client'
 import { submitBook, type SubmittedBook } from '../api/books'
 import { getExchange, type Exchange } from '../api/exchanges'
+import { saveMySubmission } from '../lib/mySubmission'
 import { validateSubmit, type SubmitErrors, type SubmitFields } from '../lib/submitValidation'
 import { useParticipantStore } from '../stores/participant'
 import WrappedPresent from '../wrapping/WrappedPresent.vue'
@@ -69,6 +70,7 @@ async function submit() {
     })
     // Like joining or hosting: whoever just submitted is the current user in this browser.
     participant.setName(book.submitterName)
+    saveMySubmission(props.exchangeCode, book.submitterName, { bookTitle: book.bookTitle, amazonUrl: book.amazonUrl })
     submitted.value = book
     form.bookTitle = ''
     form.amazonUrl = ''
