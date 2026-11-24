@@ -3,10 +3,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ApiError } from '../api/client'
 import { claimBook, getBooks, type Book } from '../api/books'
 import { getExchange, type Exchange } from '../api/exchanges'
+import { asParty, getParty, type PartyState } from '../api/party'
 import BookPresent from '../components/BookPresent.vue'
 import ClaimedRevealDialog from '../components/ClaimedRevealDialog.vue'
 import ConfirmClaimDialog from '../components/ConfirmClaimDialog.vue'
 import HostSection from '../components/HostSection.vue'
+import PartyQueue from '../components/PartyQueue.vue'
 import TreeIllustration from '../components/TreeIllustration.vue'
 import { claimability, claimFailureMessage } from '../lib/claim'
 import { forgetExchange, rememberExchange } from '../lib/lastExchange'
@@ -26,6 +28,13 @@ const state = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading')
 const exchange = ref<Exchange | null>(null)
 const books = ref<Book[]>([])
 
+// The party (a queue of turns), when one is running, and a clock that counts its turn down on this device.
+const party = ref<PartyState | null>(null)
+let partyReceivedAt = Date.now()
+const clock = ref(Date.now())
+let clockTimer: ReturnType<typeof setInterval> | undefined
+const partyNotice = ref('') // "your turn passed", "the party has ended", ...
+
 let run = 0 // each load gets a number; only the newest load may update the page
 let inFlight = false
 let timer: ReturnType<typeof setInterval> | undefined
@@ -41,8 +50,12 @@ async function load(options: { force?: boolean } = {}) {
     const [ex, list] = await Promise.all([getExchange(props.exchangeCode), getBooks(props.exchangeCode)])
     if (mine !== run) return // the exchange or the viewer changed meanwhile: this answer is stale
     if (!Array.isArray(list)) throw new Error('Unexpected response') // never render a malformed pile
+    // A party's queue is a nice-to-have: if it can't be read, the rest of the page still shows.
+    const queue = ex.mode === 'PARTY' ? asParty(await getParty(props.exchangeCode).catch(() => null)) : null
+    if (mine !== run) return
     exchange.value = ex
     books.value = list
+    if (queue || ex.mode !== 'PARTY') applyParty(queue)
     state.value = 'ready'
     rememberExchange({ code: ex.code, name: ex.name }) // so the home page can offer "Continue to ..."
 
@@ -63,6 +76,8 @@ function restart() {
   state.value = 'loading'
   exchange.value = null
   books.value = []
+  party.value = null
+  partyNotice.value = ""
   clearTimeout(reconcileTimer)
   connectLive() // a different exchange needs its own stream
   load({ force: true })
@@ -80,10 +95,28 @@ function reconcileSoon() {
 
 const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
+/** Shows a new snapshot of the party, and tells this person what happened to their turn. */
+function applyParty(next: PartyState | null) {
+  const before = party.value
+  const me = participant.name
+  if (before?.active && me) {
+    const wasMine = !!before.current && sameName(before.current, me)
+    const nowMine = !!next?.current && sameName(next.current, me)
+    const stillWaiting = next?.queue.some((e) => sameName(e.name, me) && e.status === 'WAITING')
+    if (wasMine && !nowMine && stillWaiting) {
+      partyNotice.value = "Your turn passed. You're now at the end of the queue."
+    }
+  }
+  if (next && !next.active && next.endedReason) partyNotice.value = next.endedReason
+  party.value = next && next.active ? next : null
+  partyReceivedAt = Date.now()
+  clock.value = partyReceivedAt
+}
+
 function connectLive() {
   live?.close()
   liveUp = false
-  live = openLiveUpdates(props.exchangeCode, {
+  live = openLiveUpdates(props.exchangeCode, participant.name, {
     onConnected: () => (liveUp = true),
     onDisconnected: () => (liveUp = false),
     onReconnected: () => {
@@ -122,7 +155,11 @@ function connectLive() {
     },
     onModeChanged(e) {
       if (exchange.value) exchange.value = { ...exchange.value, mode: e.mode }
+      if (e.mode !== 'PARTY') party.value = null
       reconcileSoon()
+    },
+    onPartyChanged(state) {
+      applyParty(state)
     },
   })
 }
@@ -133,9 +170,11 @@ onMounted(() => {
   timer = setInterval(() => {
     if (!document.hidden && state.value === 'ready' && !liveUp) load()
   }, REFRESH_MS)
+  clockTimer = setInterval(() => (clock.value = Date.now()), 1000)
 })
 onBeforeUnmount(() => {
   clearInterval(timer)
+  clearInterval(clockTimer)
   clearTimeout(reconcileTimer)
   live?.close()
   run++ // ignore anything still in flight
@@ -145,7 +184,10 @@ watch(() => props.exchangeCode, restart)
 // The pile looks different to a different person (their own link), so reload when the name changes.
 watch(
   () => participant.name,
-  () => load({ force: true }),
+  () => {
+    connectLive() // the party counts people by name, so the live connection carries the new one
+    load({ force: true })
+  },
 )
 
 function onHostChange(updated: Exchange) {
@@ -157,10 +199,35 @@ const myBook = computed(() => books.value.find((b) => b.viewerIsClaimer))
 const exchangeOpen = computed(() => exchange.value?.status === 'OPEN')
 
 const submitting = computed(() => exchangeOpen.value && exchange.value?.mode === 'SUBMIT')
-const claiming = computed(() => exchangeOpen.value && exchange.value?.mode === 'CLAIM')
+const inParty = computed(() => exchange.value?.mode === 'PARTY')
+const partyActive = computed(() => inParty.value && !!party.value?.active)
+
+/** In a party only the person whose turn it is may claim; everyone else is told who they are waiting for. */
+const myTurn = computed(() => !!party.value?.current && sameName(party.value.current, participant.name))
+const secondsLeft = computed(() => {
+  const left = party.value?.turnSecondsLeft
+  return left == null ? null : Math.max(0, Math.ceil(left - (clock.value - partyReceivedAt) / 1000))
+})
+const clockText = computed(() => {
+  const s = secondsLeft.value ?? 0
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+})
+
+const claiming = computed(() => {
+  if (!exchangeOpen.value) return false
+  if (exchange.value?.mode === 'CLAIM') return true
+  return inParty.value && myTurn.value
+})
+const waitingReason = computed(() =>
+  inParty.value
+    ? party.value?.current
+      ? `Waiting for ${party.value.current}`
+      : 'Waiting for the next turn'
+    : undefined,
+)
 
 function claimabilityOf(book: Book) {
-  return claimability(book, participant.name, !!myBook.value, exchangeOpen.value, claiming.value)
+  return claimability(book, participant.name, !!myBook.value, exchangeOpen.value, claiming.value, waitingReason.value)
 }
 
 // --- claiming: ask first (it can't be undone), then claim, then show what was won ---
@@ -226,6 +293,9 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
         <template v-else-if="exchange.mode === 'SUBMIT'">
           <span aria-hidden="true">📚</span> Gathering books <span aria-hidden="true">📚</span>
         </template>
+        <template v-else-if="exchange.mode === 'PARTY'">
+          <span aria-hidden="true">🎉</span> Party time! <span aria-hidden="true">🎉</span>
+        </template>
         <template v-else>
           <span aria-hidden="true">🎅</span> Exchange Time! <span aria-hidden="true">🎁</span>
         </template>
@@ -247,6 +317,22 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
         <template v-else>you haven't claimed a book yet.</template>
       </p>
     </header>
+
+    <div class="layout" :class="{ 'with-queue': partyActive }">
+    <aside v-if="partyActive && party" class="side" aria-label="The party queue">
+      <PartyQueue :party="party" :my-name="participant.name" :seconds-left="secondsLeft" />
+    </aside>
+
+    <div class="main">
+    <p v-if="partyNotice" class="notice card" role="status" data-test="party-notice">
+      {{ partyNotice }}
+      <button type="button" class="secondary" data-test="party-notice-close" @click="partyNotice = ''">OK</button>
+    </p>
+
+    <p v-if="partyActive && myTurn" class="your-turn" :class="{ urgent: (secondsLeft ?? 99) <= 15 }" role="status" data-test="your-turn">
+      <span aria-hidden="true">🎁</span> It's your turn! Pick a present.
+      <strong data-test="your-turn-clock">{{ clockText }}</strong> left
+    </p>
 
     <TreeIllustration />
 
@@ -279,7 +365,9 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
     </template>
 
     <!-- Only when the server confirms this browser holds the host token. -->
-    <HostSection v-if="exchange.isHost" :exchange="exchange" @saved="onHostChange" />
+    <HostSection v-if="exchange.isHost" :exchange="exchange" :party="party" @saved="onHostChange" @refresh="load({ force: true })" />
+    </div>
+    </div>
 
     <ConfirmClaimDialog
       v-if="pending"
@@ -295,6 +383,51 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
 <style scoped>
 .top {
   text-align: center;
+}
+/* With a party running, the queue sits to the right of the pile; on a narrow screen it goes above it. */
+.layout.with-queue {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  gap: 1.5rem;
+  align-items: start;
+}
+.side {
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+  top: 1rem;
+}
+.main {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+@media (max-width: 52rem) {
+  .layout.with-queue {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .side,
+  .main {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .side {
+    position: static;
+  }
+}
+.your-turn {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin: 0.5rem 0;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  background: #dff1e6;
+  color: var(--color-green);
+}
+.your-turn.urgent {
+  background: #f8e1e3;
+  color: var(--color-red);
 }
 .description {
   margin: 0.25rem 0;
@@ -315,6 +448,10 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
 .mode-banner.submit {
   background: #dff1e6;
   color: var(--color-green);
+}
+.mode-banner.party {
+  background: #fff4d6;
+  color: #8a5a00;
 }
 .mode-banner.claim {
   background: #f8e1e3;

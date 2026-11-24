@@ -13,10 +13,12 @@ export function claimability(
   viewerHasClaimed: boolean,
   exchangeOpen: boolean,
   claimingOpen: boolean,
+  /** Why claiming isn't open for this person right now (shown instead of the generic reason). */
+  notYetReason = "Claiming hasn't started yet",
 ): Claimability {
   if (book.claimed) return { state: 'disabled', reason: '' }
   if (!exchangeOpen) return { state: 'disabled', reason: 'This exchange is closed' }
-  if (!claimingOpen) return { state: 'disabled', reason: "Claiming hasn't started yet" }
+  if (!claimingOpen) return { state: 'disabled', reason: notYetReason }
   if (viewerHasClaimed) return { state: 'disabled', reason: "You've already claimed a book" }
   if (book.submitterName.trim().toLowerCase() === viewerName.trim().toLowerCase()) {
     return { state: 'disabled', reason: 'You brought this one' }

@@ -5,6 +5,7 @@ import com.bookexchange.domain.Exchange;
 import com.bookexchange.domain.ExchangeMode;
 import com.bookexchange.domain.ExchangeStatus;
 import com.bookexchange.error.ApiException;
+import com.bookexchange.party.PartyService;
 import com.bookexchange.repository.BookSubmissionRepository;
 import com.bookexchange.repository.ExchangeRepository;
 import java.time.Instant;
@@ -30,12 +31,14 @@ public class BookService {
     private final ExchangeRepository exchanges;
     private final BookSubmissionRepository books;
     private final ApplicationEventPublisher events;
+    private final PartyService party;
 
     public BookService(ExchangeRepository exchanges, BookSubmissionRepository books,
-                       ApplicationEventPublisher events) {
+                       ApplicationEventPublisher events, PartyService party) {
         this.exchanges = exchanges;
         this.books = books;
         this.events = events;
+        this.party = party;
     }
 
     @Transactional
@@ -94,15 +97,21 @@ public class BookService {
      */
     @Transactional
     public BookView claim(String exchangeCode, Long bookId, String participantName) {
-        Exchange exchange = exchanges.findByCodeForShare(exchangeCode) // see submit(): the host can't switch mid-way
+        // Exclusive lock: claims in one exchange go one after the other, and so do they with the host switching the
+        // mode and with a party's timer (a share lock here could deadlock with the party advancing the turn).
+        Exchange exchange = exchanges.findByCodeForUpdate(exchangeCode)
                 .orElseThrow(() -> ApiException.notFound("Exchange not found"));
         BookSubmission book = books.findByIdAndExchangeId(bookId, exchange.getId())
                 .orElseThrow(() -> ApiException.notFound("Book not found"));
         if (exchange.getStatus() != ExchangeStatus.OPEN) {
             throw ApiException.conflict("This exchange is closed and no longer accepts claims");
         }
-        if (exchange.getMode() != ExchangeMode.CLAIM) {
+        if (exchange.getMode() == ExchangeMode.SUBMIT) {
             throw ApiException.conflict(NOT_CLAIMING_YET);
+        }
+        boolean inParty = exchange.getMode() == ExchangeMode.PARTY;
+        if (inParty) {
+            party.requireTurn(exchange, participantName); // only the person whose turn it is may claim
         }
         if (book.getSubmitterName().equalsIgnoreCase(participantName)) {
             throw ApiException.conflict(OWN_BOOK);
@@ -125,6 +134,10 @@ public class BookService {
         }
         if (updated == 0) {
             throw ApiException.conflict(BOOK_ALREADY_CLAIMED);
+        }
+
+        if (inParty) {
+            party.completeTurn(exchange, participantName); // their turn is over; the next one starts
         }
 
         BookSubmission claimed = books.findById(bookId).orElseThrow();

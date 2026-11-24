@@ -16,8 +16,9 @@ const busy = ref(false)
 const error = ref('')
 
 const toClaim = computed(() => props.exchange.mode === 'SUBMIT') // the switch goes to the other mode
-const target = computed<Exchange['mode']>(() => (toClaim.value ? 'CLAIM' : 'SUBMIT'))
+const target = computed<'SUBMIT' | 'CLAIM'>(() => (toClaim.value ? 'CLAIM' : 'SUBMIT'))
 const open = computed(() => props.exchange.status === 'OPEN')
+const partyRunning = computed(() => props.exchange.mode === 'PARTY')
 const books = computed(() => `${props.exchange.bookCount} ${props.exchange.bookCount === 1 ? 'book' : 'books'}`)
 
 function ask() {
@@ -53,6 +54,9 @@ async function confirm() {
       <template v-if="exchange.mode === 'SUBMIT'">
         <strong>Submit mode.</strong> Everyone can add their book, but nobody can claim yet.
       </template>
+      <template v-else-if="exchange.mode === 'PARTY'">
+        <strong>Party.</strong> Everyone claims in turn, one person at a time. Nobody can add a book.
+      </template>
       <template v-else>
         <strong>Claim mode.</strong> Everyone can claim a present, but nobody can add a book any more.
       </template>
@@ -63,9 +67,10 @@ async function confirm() {
 
     <p v-if="error" class="error" role="alert" data-test="mode-error">{{ error }}</p>
 
-    <button type="button" :disabled="!open" data-test="mode-switch" @click="ask">
+    <button type="button" :disabled="!open || partyRunning" data-test="mode-switch" @click="ask">
       {{ toClaim ? 'Start claiming…' : 'Go back to submitting…' }}
     </button>
+    <p v-if="partyRunning" class="hint" data-test="mode-party">A party is running. End the party to change the mode.</p>
     <p v-if="!open" class="hint" data-test="mode-closed">This exchange is closed, so the mode can't be used.</p>
 
     <ModalDialog v-if="asking" labelledby="mode-confirm-title" @close="!busy && (asking = false)">

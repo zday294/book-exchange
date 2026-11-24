@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Exchange } from '../api/exchanges'
+import type { PartyState } from '../api/party'
 import HostMode from './HostMode.vue'
+import HostParty from './HostParty.vue'
 import HostSettings from './HostSettings.vue'
 
 /**
@@ -9,8 +11,8 @@ import HostSettings from './HostSettings.vue'
  * below, so a new block (the submit/claim mode switch, the party controls, ...) is added by writing it
  * and listing it here, without touching the others.
  */
-defineProps<{ exchange: Exchange }>()
-defineEmits<{ saved: [exchange: Exchange] }>()
+defineProps<{ exchange: Exchange; party: PartyState | null }>()
+defineEmits<{ saved: [exchange: Exchange]; refresh: [] }>()
 </script>
 
 <template>
@@ -19,6 +21,7 @@ defineEmits<{ saved: [exchange: Exchange] }>()
     <p class="intro">Only you can see this. Anyone with the exchange's code can still join.</p>
 
     <HostMode :exchange="exchange" @saved="$emit('saved', $event)" />
+    <HostParty :exchange="exchange" :party="party" @changed="$emit('refresh')" />
     <HostSettings :exchange="exchange" @saved="$emit('saved', $event)" />
     <!-- More host blocks go here, each with its own heading. -->
   </section>

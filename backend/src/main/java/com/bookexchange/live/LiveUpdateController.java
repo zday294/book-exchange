@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -38,7 +39,9 @@ public class LiveUpdateController {
                     + "- `book-added`: `{id, submitterName, wrappingPaper}`, a new wrapped present. Nothing about the book.\n"
                     + "- `book-claimed`: `{id, claimedByName, claimedAt, bookTitle, coverImageUrl}`, a present was claimed "
                     + "(`coverImageUrl` is omitted when unknown).\n"
-                    + "- `mode-changed`: `{mode}`, the host switched between submit and claim mode.\n\n"
+                    + "- `mode-changed`: `{mode}` (`SUBMIT`, `CLAIM` or `PARTY`).\n"
+                    + "- `party-changed`: the party queue: `{active, endedReason?, current?, turnSecondsLeft?, queue:[{name, status, online}], "
+                    + "eligible}`. Names and order only.\n\n"
                     + "A comment line (`: keep-alive`) is sent every few seconds so proxies keep the connection open. "
                     + "The server recycles connections after a while; the browser reconnects by itself and should "
                     + "re-read the pile, because events sent while it was away are not replayed.")
@@ -53,10 +56,13 @@ public class LiveUpdateController {
     @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter watch(
             @Parameter(description = "Short shareable code of the exchange", example = "XMAS2026")
-            @PathVariable String exchangeCode) {
+            @PathVariable String exchangeCode,
+            @Parameter(description = "Who is watching (optional). With a name, the viewer counts as online for the "
+                    + "party. A browser's EventSource can't send headers, so it goes in the URL.", example = "Alex")
+            @RequestParam(required = false) String name) {
         if (exchanges.findByCode(exchangeCode).isEmpty()) {
             throw ApiException.notFound("Exchange not found");
         }
-        return hub.subscribe(exchangeCode);
+        return hub.subscribe(exchangeCode, name);
     }
 }

@@ -3,6 +3,7 @@ package com.bookexchange.live;
 import com.bookexchange.book.BookClaimedEvent;
 import com.bookexchange.book.BookSubmittedEvent;
 import com.bookexchange.exchange.ExchangeModeChangedEvent;
+import com.bookexchange.party.PartyChangedEvent;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import org.springframework.stereotype.Component;
@@ -47,6 +48,11 @@ public class LiveUpdateListener {
         hub.publish(event.exchangeCode(), "book-claimed",
                 new BookClaimed(event.bookId(), event.claimedByName(), event.claimedAt(),
                         event.bookTitle(), event.coverImageUrl()));
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onPartyChanged(PartyChangedEvent event) {
+        hub.publish(event.exchangeCode(), "party-changed", event.state());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

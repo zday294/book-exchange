@@ -121,7 +121,7 @@ class OpenApiDocsTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath(put + ".responses['400']").exists())
                 .andExpect(jsonPath(put + ".responses['403']").exists())
                 .andExpect(jsonPath(put + ".responses['404']").exists())
-                .andExpect(jsonPath("$.components.schemas.ExchangeResponse.properties.mode.enum.length()").value(2))
+                .andExpect(jsonPath("$.components.schemas.ExchangeResponse.properties.mode.enum.length()").value(3))
                 .andExpect(jsonPath("$.components.schemas.ChangeModeRequest.properties.mode").exists());
     }
 

@@ -9,7 +9,7 @@ export interface Exchange {
   listed: boolean
   status: 'OPEN' | 'CLOSED'
   /** SUBMIT: people submit books, nobody can claim. CLAIM: people claim books, nobody can submit. */
-  mode: 'SUBMIT' | 'CLAIM'
+  mode: 'SUBMIT' | 'CLAIM' | 'PARTY'
   bookCount: number
   claimedCount: number
   createdAt: string
@@ -24,7 +24,7 @@ export const getExchange = (code: string) =>
   api<Exchange>(`/api/exchanges/${encodeURIComponent(code)}`, { headers: hostHeaders(code) })
 
 /** Host only: switch between submit mode and claim mode. */
-export const setExchangeMode = (code: string, mode: Exchange['mode']) =>
+export const setExchangeMode = (code: string, mode: 'SUBMIT' | 'CLAIM') =>
   api<Exchange>(`/api/exchanges/${encodeURIComponent(code)}/mode`, {
     method: 'PUT',
     body: { mode },

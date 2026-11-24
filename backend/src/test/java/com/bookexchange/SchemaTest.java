@@ -35,7 +35,7 @@ class SchemaTest extends AbstractIntegrationTest {
     @Test
     void liquibaseRecordedEveryChangeset() {
         Integer applied = jdbc.queryForObject("SELECT count(*) FROM databasechangelog", Integer.class);
-        assertThat(applied).isEqualTo(8); // 001, 002, 003 (two), 004, 005, 006, 007
+        assertThat(applied).isEqualTo(9); // 001, 002, 003 (two), 004, 005, 006, 007, 008
     }
 
     @Test
@@ -73,7 +73,8 @@ class SchemaTest extends AbstractIntegrationTest {
         assertThat(jdbc.queryForObject("select mode from exchange where code = 'XMAS2026'", String.class)).isEqualTo("SUBMIT");
 
         jdbc.update("update exchange set mode = 'CLAIM' where id = ?", e.getId()); // fine
-        assertThatThrownBy(() -> jdbc.update("update exchange set mode = 'PARTY' where id = ?", e.getId()))
+        jdbc.update("update exchange set mode = 'PARTY' where id = ?", e.getId()); // party mode exists now
+        assertThatThrownBy(() -> jdbc.update("update exchange set mode = 'DANCE' where id = ?", e.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

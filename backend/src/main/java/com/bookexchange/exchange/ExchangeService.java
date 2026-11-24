@@ -102,6 +102,12 @@ public class ExchangeService {
         if (!hostTokens.matches(hostToken, exchange.getHostTokenHash())) {
             throw ApiException.forbidden("Only the host of this exchange can change it");
         }
+        if (mode == ExchangeMode.PARTY) {
+            throw ApiException.badRequest("A party is started with the party endpoint, not by switching the mode");
+        }
+        if (exchange.getMode() == ExchangeMode.PARTY) {
+            throw ApiException.conflict("A party is running. End the party first.");
+        }
         if (exchange.getMode() != mode) {
             exchange.setMode(mode);
             exchanges.saveAndFlush(exchange);

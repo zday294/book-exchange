@@ -38,17 +38,28 @@ There is no sign-in yet, so the host is whoever holds the **host token**:
 - `PATCH /api/exchanges/{code}` (host only) changes `name`, `description`, `organizerName` and/or `listed`. Fields left out are unchanged; an empty `description` removes it; validation is the same as at creation (`400` with per-field `details`). `404` for an unknown exchange.
 - CORS allows the `PATCH` method and the `X-Host-Token` header.
 
+### Party mode (a queue of turns)
+The host can start a **party**: everyone gets a turn to claim a present, one person at a time.
+- `POST /api/exchanges/{code}/party/start` (host only) switches the exchange to `PARTY` mode (from submit or claim mode) and queues everyone who is **online** and hasn't claimed a book, in a **random** order; the first person's turn starts at once. `409` if a party is already running, the exchange is closed, there are no presents left, or nobody is online. `POST .../party/skip` moves the current person to the end of the line; `POST .../party/end` ends the party and returns the exchange to claim mode (claims stay). `GET /api/exchanges/{code}/party` shows the queue to anyone: `{active, endedReason?, current?, turnSecondsLeft?, queue:[{name, status, online}], eligible}` (names and order only; `DONE` entries first, then the current person, then those waiting). The mode can't be switched to or from `PARTY` with the plain mode switch.
+- **Turns:** each lasts `PARTY_TURN_SECONDS` (default 120). In party mode only the current person can claim; anyone else gets `409` ("It's not your turn; Alex is up"). A successful claim by the current person marks them done and starts the next turn in the same transaction. If the time runs out, the person goes to the **end of the line** (they are not removed) and the next turn starts. The same happens when the host skips them or they go offline.
+- **The server is the clock:** turn end times are stored in the database and compared with the database's `now()`, so a claim that arrives after a turn ended is refused even if the timer hasn't run yet, a restart neither loses nor extends a turn, and a wrong clock on someone's device only affects their own countdown. A timer runs about once a second (`PARTY_TICK_MILLIS`) for each running party.
+- **Online** means having the exchange page open with a saved name: the live stream is opened as `GET /api/exchanges/{code}/events?name=Alex` (a browser's `EventSource` can't send headers). A name with a connection open is online; after the last one closes it stays online for `PARTY_OFFLINE_GRACE_SECONDS` (default 30), so a page refresh or a moment without signal doesn't lose a turn. Someone who is offline when their turn comes, or goes offline during it, is passed over after that grace period. People who arrive after the party started (and haven't claimed) join the end of the line.
+- **A party also ends by itself** when every present is claimed ("All the presents have been claimed. Party over!"), or when a whole round of turns passes without a single claim ("Nobody claimed a present for a whole round..."). If everyone in line has had their turn but presents remain, it stays open for late arrivals until the host ends it.
+- **No races:** claiming, the timer, skipping and ending all take the exchange's row lock (`FOR UPDATE`), so they happen one after the other; the turn is completed with a conditional update that only one claim can win. Changes are announced on the live stream as `party-changed` snapshots (after commit).
+- **Single instance:** who is online is kept in the memory of one server process (like the live streams), so a party needs a single backend instance for now. See the deployment note under Live updates.
+
 ### Live updates
-`GET /api/exchanges/{code}/events` is a long-lived **Server-Sent Events** stream (`text/event-stream`) for one exchange; browsers open it with `EventSource`. `404` for an unknown exchange, `503` when the server already holds its maximum number of connections.
+`GET /api/exchanges/{code}/events?name=` (the optional `name` says who is watching, for the party) is a long-lived **Server-Sent Events** stream (`text/event-stream`) for one exchange; browsers open it with `EventSource`. `404` for an unknown exchange, `503` when the server already holds its maximum number of connections.
 - `ready`: the connection is open (sent at once).
 - `book-added`: `{id, submitterName, wrappingPaper}`, a new wrapped present. Nothing about the book.
 - `book-claimed`: `{id, claimedByName, claimedAt, bookTitle, coverImageUrl?}`. Public once a book is claimed. **Never the book link**; that stays in the claimer's own response.
-- `mode-changed`: `{mode}`.
+- `mode-changed`: `{mode}` (`SUBMIT`, `CLAIM` or `PARTY`).
+- `party-changed`: the whole party queue (see Party mode). Names and order only.
 - A comment line (`: keep-alive`) every 15 seconds keeps proxies from closing an idle connection and lets the server notice a browser that went away.
 - Events are sent only **after the database transaction commits**, so a rejected or rolled-back request announces nothing. Events of one exchange never reach watchers of another. Events sent while a browser was disconnected are **not replayed**: the front end re-reads the pile when it reconnects.
 - Connections last at most 30 minutes (the browser reconnects by itself), and all are closed as soon as the application starts shutting down, so a deploy is not held up by open streams.
 
-Settings (environment variables): `EVENTS_HEARTBEAT_MILLIS` (15000), `EVENTS_MAX_SUBSCRIBERS` (1000, roughly one per open browser page), `EVENTS_CONNECTION_MINUTES` (30).
+Settings (environment variables): `PARTY_TURN_SECONDS` (120), `PARTY_OFFLINE_GRACE_SECONDS` (30), `PARTY_TICK_MILLIS` (1000), `EVENTS_HEARTBEAT_MILLIS` (15000), `EVENTS_MAX_SUBSCRIBERS` (1000, roughly one per open browser page), `EVENTS_CONNECTION_MINUTES` (30).
 
 **Limits to know about for deployment (#20-#22):** connections are held in the memory of one server process, so live updates reach only the people connected to the same instance; run a single backend instance, or add a shared mechanism (for example Postgres `LISTEN/NOTIFY`) before scaling out. The hosting platform's request timeout must allow long-lived requests (for Cloud Run, raise the request timeout; the browser reconnects when it ends, so the cost of a short timeout is only more reconnects).
 

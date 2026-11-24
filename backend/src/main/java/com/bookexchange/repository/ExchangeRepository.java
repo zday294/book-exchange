@@ -17,6 +17,10 @@ public interface ExchangeRepository extends JpaRepository<Exchange, Long> {
 
     Optional<Exchange> findByCode(String code);
 
+    /** The codes of the exchanges in the given mode (the timer uses this to find running parties). */
+    @Query("select e.code from Exchange e where e.mode = :mode")
+    java.util.List<String> findCodesByMode(@Param("mode") com.bookexchange.domain.ExchangeMode mode);
+
     /**
      * Loads the exchange with a shared row lock ({@code FOR SHARE}), held until the transaction ends. Submitting
      * and claiming use this so a host switching the mode at the same moment can't slip in half way: the
