@@ -1,5 +1,6 @@
 package com.bookexchange.exchange;
 
+import com.bookexchange.domain.ExchangeStatus;
 import com.bookexchange.error.ApiError;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -49,6 +51,27 @@ public class ExchangeController {
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{code}").buildAndExpand(created.code()).toUri();
         return ResponseEntity.created(location).body(created);
+    }
+
+    @Operation(summary = "List public exchanges",
+            description = "The exchanges that are listed publicly, with an optional case-insensitive search on the "
+                    + "name. Open exchanges come first, then closed ones; within each, newest first. Exchanges that "
+                    + "are not listed (private ones) never appear here, even when searched for by name: they can "
+                    + "only be reached with their code.")
+    @ApiResponse(responseCode = "200", description = "One page of exchanges (an empty `items` list when nothing matches)")
+    @ApiResponse(responseCode = "400", description = "Invalid `page`, `size`, `query` or `status`",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = @ExampleObject(value = "{\"error\": \"size must be between 1 and 50\", \"details\": []}")))
+    @GetMapping
+    public ExchangeListResponse list(
+            @Parameter(description = "Only exchanges whose name contains this text (case-insensitive, at most 100 characters)",
+                    example = "office")
+            @RequestParam(required = false) String query,
+            @Parameter(description = "Only exchanges with this status; omit for both")
+            @RequestParam(required = false) ExchangeStatus status,
+            @Parameter(description = "Page number, starting at 0") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size, 1 to 50") @RequestParam(defaultValue = "12") int size) {
+        return service.list(query, status, page, size);
     }
 
     @Operation(summary = "Get an exchange",

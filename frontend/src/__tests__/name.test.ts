@@ -31,7 +31,7 @@ async function mountAt(path: string) {
 
 async function enterName(wrapper: VueWrapper, value: string) {
   await wrapper.get('[data-test=name-input]').setValue(value)
-  await wrapper.get('form').trigger('submit')
+  await wrapper.get('[data-test=name-dialog] form').trigger('submit')
   await flushPromises()
 }
 

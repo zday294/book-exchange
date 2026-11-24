@@ -8,6 +8,7 @@ import ClaimedRevealDialog from '../components/ClaimedRevealDialog.vue'
 import ConfirmClaimDialog from '../components/ConfirmClaimDialog.vue'
 import TreeIllustration from '../components/TreeIllustration.vue'
 import { claimability, claimFailureMessage } from '../lib/claim'
+import { forgetExchange, rememberExchange } from '../lib/lastExchange'
 import { useParticipantStore } from '../stores/participant'
 
 const props = defineProps<{ exchangeCode: string }>()
@@ -35,10 +36,16 @@ async function load(options: { force?: boolean } = {}) {
     exchange.value = ex
     books.value = list
     state.value = 'ready'
+    rememberExchange({ code: ex.code, name: ex.name }) // so the home page can offer "Continue to ..."
+
   } catch (e) {
     if (mine !== run) return
-    if (e instanceof ApiError && e.status === 404) state.value = 'notfound'
-    else if (state.value !== 'ready') state.value = 'error' // a failed refresh keeps what is on screen
+    if (e instanceof ApiError && e.status === 404) {
+      state.value = 'notfound'
+      forgetExchange(props.exchangeCode)
+    } else if (state.value !== 'ready') {
+      state.value = 'error' // a failed refresh keeps what is on screen
+    }
   } finally {
     if (mine === run) inFlight = false
   }

@@ -81,6 +81,21 @@ class OpenApiDocsTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void exchangeListEndpointIsDocumented() throws Exception {
+        String get = "$.paths['/api/exchanges'].get";
+        mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+                .andExpect(jsonPath(get + ".summary").isNotEmpty())
+                .andExpect(jsonPath(get + ".parameters[?(@.name=='query')]").isNotEmpty())
+                .andExpect(jsonPath(get + ".parameters[?(@.name=='status')]").isNotEmpty())
+                .andExpect(jsonPath(get + ".parameters[?(@.name=='page')]").isNotEmpty())
+                .andExpect(jsonPath(get + ".parameters[?(@.name=='size')]").isNotEmpty())
+                .andExpect(jsonPath(get + ".responses['200']").exists())
+                .andExpect(jsonPath(get + ".responses['400']").exists())
+                .andExpect(jsonPath("$.components.schemas.ExchangeListResponse.properties.items").exists())
+                .andExpect(jsonPath("$.components.schemas.ExchangeSummary.properties.bookCount").exists());
+    }
+
+    @Test
     void errorResponsesUseTheSharedErrorSchema() throws Exception {
         String spec = spec();
         assertThat(spec).contains("#/components/schemas/ApiError");
