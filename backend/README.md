@@ -30,6 +30,14 @@ cd backend
 - `GET /api/exchanges/{exchangeCode}` -> name, description, organizer, listed, status, `bookCount`, `claimedCount`, `createdAt`; `404` for an unknown code (private exchanges are found this way too).
 - Not yet: closing/editing/organizer-only actions (need sign-in, #17), and the public list (#13).
 
+### List public exchanges
+`GET /api/exchanges?query=&status=&page=&size=`
+- Lists only exchanges that are public (`listed`). Private exchanges never appear, even when searched for by exact name; they are reached by code with `GET /api/exchanges/{code}`.
+- `query` (optional, at most 100 characters): case-insensitive "name contains" search. Surrounding spaces are ignored, and `%` and `_` are searched literally.
+- `status` (optional): `OPEN` or `CLOSED`; leave it out for both. **Open exchanges come first**, then closed ones; within each, newest first (ties broken by id, so pages never repeat or skip an exchange).
+- `page` (from 0, default 0) and `size` (1 to 50, default 12). Invalid values return `400`.
+- Response: `{ items, page, size, totalItems, totalPages }`. Each item: `code`, `name`, `description`, `status`, `bookCount`, `claimedCount`, `createdAt`. Counts only; nothing about any book or the organizer.
+
 ### Submit a book
 `POST /api/exchanges/{exchangeCode}/books`
 ```json

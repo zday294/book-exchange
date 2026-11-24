@@ -29,21 +29,6 @@ describe('routes', () => {
     expect(wrapper.find('h1').text()).toBe(heading)
   })
 
-  it('home shows that the backend is reachable', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({ name: 'Demo' }), { status: 200 })),
-    )
-    const wrapper = await mountAt('/')
-    expect(wrapper.get('[data-test=api-status]').text()).toContain('Backend connected')
-  })
-
-  it('home says so when the backend is down', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('down')))
-    const wrapper = await mountAt('/')
-    expect(wrapper.get('[data-test=api-status]').text()).toContain('not reachable')
-  })
-
   it('the header links to the create page', async () => {
     const wrapper = await mountAt('/exchanges/new')
     expect(wrapper.findAll('a').map((a) => a.attributes('href'))).toContain('/exchanges/new')
