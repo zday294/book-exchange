@@ -104,6 +104,12 @@ async function submit() {
     <button type="button" data-test="retry" @click="loadExchange">Try again</button>
   </section>
 
+  <section v-else-if="exchange && exchange.mode === 'CLAIM' && exchange.status === 'OPEN'" class="card" data-test="submissions-closed">
+    <h1>{{ exchange.name }}</h1>
+    <p>Submissions are closed: this exchange has moved on to claiming, so no more books can be added.</p>
+    <RouterLink class="button" :to="{ name: 'exchange', params: { exchangeCode } }">Back to the exchange</RouterLink>
+  </section>
+
   <section v-else-if="exchange && exchange.status !== 'OPEN'" class="card" data-test="closed">
     <h1>{{ exchange.name }}</h1>
     <p>This exchange is closed and no longer accepts books.</p>

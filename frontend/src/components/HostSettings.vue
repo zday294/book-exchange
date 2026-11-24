@@ -146,6 +146,11 @@ async function save() {
 </template>
 
 <style scoped>
+.block {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
 h3 {
   margin-top: 0;
 }

@@ -38,7 +38,16 @@ There is no sign-in yet, so the host is whoever holds the **host token**:
 - `PATCH /api/exchanges/{code}` (host only) changes `name`, `description`, `organizerName` and/or `listed`. Fields left out are unchanged; an empty `description` removes it; validation is the same as at creation (`400` with per-field `details`). `404` for an unknown exchange.
 - CORS allows the `PATCH` method and the `X-Host-Token` header.
 
-### List public exchanges
+### Submit mode and claim mode
+An exchange is in exactly one **mode**, and the two are exclusive (the backend enforces it; the UI only mirrors it):
+- **`SUBMIT`** (the default for every exchange, including existing ones): participants can submit books. **Claiming returns `409`** ("Claiming hasn't started yet; the host will open it when everyone has submitted their book").
+- **`CLAIM`**: participants can claim books. **Submitting returns `409`** ("This exchange has moved on to claiming, so no more books can be submitted"). Nothing is saved on a rejected call.
+- `PUT /api/exchanges/{code}/mode` with `{ "mode": "CLAIM" }` (host only, `X-Host-Token`) switches in either direction at any time; existing books and claims are untouched. `403` without the host token, `404` unknown exchange, `400` for a missing or unknown mode. Switching to the mode it is already in does nothing.
+- Reading the pile works in both modes. A `CLOSED` exchange (the separate `status`) accepts neither submissions nor claims, whatever its mode.
+- **No race:** submitting and claiming take a shared row lock on the exchange, and switching the mode takes an exclusive one, so a switch and a submit/claim that happen at the same moment happen one after the other: a book can never be saved after claiming began.
+- A change publishes an `ExchangeModeChangedEvent` (for live updates, #15). The mode is part of the exchange details (`mode`). A later "party" mode widens the allowed values with a new changeset.
+
+### The host, and changing an exchange's settings
 `GET /api/exchanges?query=&status=&page=&size=`
 - Lists only exchanges that are public (`listed`). Private exchanges never appear, even when searched for by exact name; they are reached by code with `GET /api/exchanges/{code}`.
 - `query` (optional, at most 100 characters): case-insensitive "name contains" search. Surrounding spaces are ignored, and `%` and `_` are searched literally.

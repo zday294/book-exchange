@@ -48,6 +48,11 @@ public class Exchange {
     @Setter
     private ExchangeStatus status = ExchangeStatus.OPEN;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Setter
+    private ExchangeMode mode = ExchangeMode.SUBMIT;
+
     /** SHA-256 of the host token; null for exchanges created before host tokens existed (no host). */
     @Column(name = "host_token_hash", length = 64)
     @Setter

@@ -8,7 +8,7 @@ import { PARTICIPANT_STORAGE_KEY } from '../stores/participant'
 
 const URL = 'https://www.amazon.com/dp/0547928221'
 const exchange = {
-  code: 'K7M2PXA', name: 'Office Christmas', listed: true, status: 'OPEN',
+  code: 'K7M2PXA', name: 'Office Christmas', listed: true, status: 'OPEN', mode: 'SUBMIT',
   bookCount: 0, claimedCount: 0, createdAt: '2026-11-24T14:02:03Z',
 }
 

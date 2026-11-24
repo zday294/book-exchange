@@ -14,6 +14,7 @@ const exchange = {
   description: 'Bring a book under $20',
   listed: true,
   status: 'OPEN',
+  mode: 'SUBMIT',
   bookCount: 3,
   claimedCount: 2,
   createdAt: '2026-11-24T14:02:03Z',

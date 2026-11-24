@@ -334,7 +334,7 @@ describe('home page', () => {
     })
 
     it('is remembered when an exchange page is opened, and forgotten if that exchange is gone', async () => {
-      const exchange = { code: 'AAA1111', name: 'Office Party', listed: true, status: 'OPEN', bookCount: 0, claimedCount: 0, createdAt: 'x' }
+      const exchange = { code: 'AAA1111', name: 'Office Party', listed: true, status: 'OPEN', mode: 'SUBMIT', bookCount: 0, claimedCount: 0, createdAt: 'x' }
       let gone = false
       vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
         if (gone) return json({ error: 'Exchange not found', details: [] }, 404)

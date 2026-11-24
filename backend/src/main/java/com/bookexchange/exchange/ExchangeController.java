@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -76,6 +77,32 @@ public class ExchangeController {
             @Parameter(description = "Page number, starting at 0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size, 1 to 50") @RequestParam(defaultValue = "12") int size) {
         return service.list(query, status, page, size);
+    }
+
+    @Operation(summary = "Switch an exchange between submit mode and claim mode (host only)",
+            description = "SUBMIT: participants can submit books and nobody can claim. CLAIM: participants can claim "
+                    + "books and nobody can submit. The host can switch in either direction at any time; books and "
+                    + "claims that already exist are untouched. Switching to the mode it is already in changes nothing. "
+                    + "Requires the `X-Host-Token` returned when the exchange was created.")
+    @ApiResponse(responseCode = "200", description = "The updated exchange (`isHost` is true)")
+    @ApiResponse(responseCode = "400", description = "Missing or unknown `mode`",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = @ExampleObject(value = "{\"error\": \"Malformed request body\", \"details\": []}")))
+    @ApiResponse(responseCode = "403", description = "Missing or wrong host token, or an exchange that has no host",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = @ExampleObject(value = "{\"error\": \"Only the host of this exchange can change it\", "
+                            + "\"details\": []}")))
+    @ApiResponse(responseCode = "404", description = "No exchange with that code",
+            content = @Content(schema = @Schema(implementation = ApiError.class),
+                    examples = @ExampleObject(value = "{\"error\": \"Exchange not found\", \"details\": []}")))
+    @PutMapping("/{exchangeCode}/mode")
+    public ExchangeResponse setMode(
+            @Parameter(description = "Short shareable code of the exchange", example = "K7M2PXA")
+            @PathVariable String exchangeCode,
+            @Parameter(description = "The host token returned when the exchange was created", required = true)
+            @RequestHeader(value = "X-Host-Token", required = false) String hostToken,
+            @Valid @RequestBody ChangeModeRequest request) {
+        return service.setMode(exchangeCode, hostToken, request.mode());
     }
 
     @Operation(summary = "Get an exchange",

@@ -1,6 +1,7 @@
 package com.bookexchange.exchange;
 
 import com.bookexchange.domain.Exchange;
+import com.bookexchange.domain.ExchangeMode;
 import com.bookexchange.domain.ExchangeStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -15,6 +16,8 @@ public record ExchangeResponse(
         @Schema(example = "Zach", nullable = true) String organizerName,
         @Schema(description = "Whether it appears in the public list") boolean listed,
         ExchangeStatus status,
+        @Schema(description = "SUBMIT: people can submit books but not claim. CLAIM: people can claim but not submit. "
+                + "The host switches between them.") ExchangeMode mode,
         @Schema(description = "Books submitted so far", example = "12") long bookCount,
         @Schema(description = "How many of them have been claimed", example = "5") long claimedCount,
         @Schema(example = "2026-11-24T14:02:03Z") Instant createdAt,
@@ -27,12 +30,12 @@ public record ExchangeResponse(
 
     public static ExchangeResponse of(Exchange e, long bookCount, long claimedCount, boolean isHost) {
         return new ExchangeResponse(e.getCode(), e.getName(), e.getDescription(), e.getCreatedByName(),
-                e.isListed(), e.getStatus(), bookCount, claimedCount, e.getCreatedAt(), isHost, null);
+                e.isListed(), e.getStatus(), e.getMode(), bookCount, claimedCount, e.getCreatedAt(), isHost, null);
     }
 
     /** The same response with the freshly created host token added (used once, on creation). */
     public ExchangeResponse withHostToken(String token) {
-        return new ExchangeResponse(code, name, description, organizerName, listed, status, bookCount,
+        return new ExchangeResponse(code, name, description, organizerName, listed, status, mode, bookCount,
                 claimedCount, createdAt, isHost, token);
     }
 }

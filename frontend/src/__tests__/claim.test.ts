@@ -13,7 +13,7 @@ import { PARTICIPANT_STORAGE_KEY } from '../stores/participant'
 
 const URL = 'https://www.amazon.com/dp/0547928221'
 const exchange = {
-  code: 'K7M2PXA', name: 'Office Christmas', listed: true, status: 'OPEN',
+  code: 'K7M2PXA', name: 'Office Christmas', listed: true, status: 'OPEN', mode: 'CLAIM',
   bookCount: 3, claimedCount: 1, createdAt: '2026-11-24T14:02:03Z',
 }
 
@@ -319,16 +319,24 @@ describe('claiming from the pile', () => {
 
 describe('claimability rules', () => {
   const open = true
+  const claimingOpen = true
   it('allows a stranger to claim an unclaimed present', () => {
-    expect(claimability(sams, 'Alex', false, open)).toEqual({ state: 'claimable' })
+    expect(claimability(sams, 'Alex', false, open, true)).toEqual({ state: 'claimable' })
   })
   it('explains each refusal', () => {
-    expect(claimability(zachs, 'zach', false, open)).toEqual({ state: 'disabled', reason: 'You brought this one' })
-    expect(claimability(sams, 'Alex', true, open)).toEqual({ state: 'disabled', reason: "You've already claimed a book" })
-    expect(claimability(sams, 'Alex', false, false)).toEqual({ state: 'disabled', reason: 'This exchange is closed' })
+    expect(claimability(zachs, 'zach', false, open, true)).toEqual({ state: 'disabled', reason: 'You brought this one' })
+    expect(claimability(sams, 'Alex', true, open, true)).toEqual({ state: 'disabled', reason: "You've already claimed a book" })
+    expect(claimability(sams, 'Alex', false, false, true)).toEqual({ state: 'disabled', reason: 'This exchange is closed' })
+  })
+  it('waits for the host to open claiming (submit mode)', () => {
+    expect(claimability(sams, 'Alex', false, open, false)).toEqual({ state: 'disabled', reason: "Claiming hasn't started yet" })
+    expect(claimability(zachs, 'zach', false, open, false)).toEqual({ state: 'disabled', reason: "Claiming hasn't started yet" })
+  })
+  it('a closed exchange is reported as closed, not as "not started"', () => {
+    expect(claimability(sams, 'Alex', false, false, false)).toEqual({ state: 'disabled', reason: 'This exchange is closed' })
   })
   it('has nothing to offer for a claimed present', () => {
-    expect(claimability(takenByLee, 'Alex', false, open)).toEqual({ state: 'disabled', reason: '' })
+    expect(claimability(takenByLee, 'Alex', false, open, true)).toEqual({ state: 'disabled', reason: '' })
   })
 })
 

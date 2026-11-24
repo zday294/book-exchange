@@ -11,6 +11,7 @@ const created = {
   name: 'Office Christmas',
   listed: true,
   status: 'OPEN',
+  mode: 'SUBMIT',
   bookCount: 0,
   claimedCount: 0,
   createdAt: '2026-11-24T14:02:03Z',

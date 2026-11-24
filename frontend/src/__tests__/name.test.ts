@@ -12,7 +12,7 @@ function stubBackend() {
   const fetchMock = vi.fn().mockImplementation(async (url: string) => {
     const body = url.endsWith('/books')
       ? []
-      : { code: 'K7M2PXA', name: 'Office Christmas', listed: true, status: 'OPEN', bookCount: 0, claimedCount: 0, createdAt: '2026-11-24T14:02:03Z' }
+      : { code: 'K7M2PXA', name: 'Office Christmas', listed: true, status: 'OPEN', mode: 'SUBMIT', bookCount: 0, claimedCount: 0, createdAt: '2026-11-24T14:02:03Z' }
     return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
   })
   vi.stubGlobal('fetch', fetchMock)
