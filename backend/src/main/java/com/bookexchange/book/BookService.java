@@ -69,7 +69,8 @@ public class BookService {
         }
 
         // Listeners that react after commit (cover lookup) must never affect this request.
-        events.publishEvent(new BookSubmittedEvent(book.getId()));
+        events.publishEvent(new BookSubmittedEvent(book.getId(), exchange.getCode(),
+                book.getSubmitterName(), book.getWrappingPaper()));
         return book;
     }
 
@@ -127,7 +128,7 @@ public class BookService {
         }
 
         BookSubmission claimed = books.findById(bookId).orElseThrow();
-        events.publishEvent(new BookClaimedEvent(claimed.getId(), claimed.getBookTitle(),
+        events.publishEvent(new BookClaimedEvent(claimed.getId(), exchange.getCode(), claimed.getBookTitle(),
                 claimed.getCoverImageUrl(), claimed.getClaimedByName(), claimed.getClaimedAt()));
         return BookView.of(claimed, participantName);
     }
