@@ -1,5 +1,7 @@
 # Christmas Book Exchange
 
+[![CI](https://github.com/zday294/book-exchange/actions/workflows/ci.yml/badge.svg)](https://github.com/zday294/book-exchange/actions/workflows/ci.yml)
+
 A web app for running a Christmas book exchange. People submit a wrapped book (their name, the book's name, an Amazon link, and a wrapping paper). Everyone gathers around a tree with a pile of presents, and each person claims one. A claimed book reveals its title, cover and claimer; only the claimer ever sees the Amazon link.
 
 > **Status:** planning. The work is tracked as [GitHub issues](https://github.com/zday294/book-exchange/issues); only the database and backend scaffold exist so far.
@@ -49,6 +51,22 @@ Postgres listens on `localhost:5433` (database, user and password are all `booke
 **Backend** (needs Java 21): see [backend/README.md](backend/README.md).
 
 **Front end** (needs Node 22+): see [frontend/README.md](frontend/README.md). `npm run dev` serves it on http://localhost:5173 and proxies `/api` to the backend.
+
+## Continuous integration
+Every pull request (and every push to `main`) is built and tested by GitHub Actions (`.github/workflows/ci.yml`):
+
+| Job | Runs when | What it does |
+|---|---|---|
+| Backend | `backend/` changes | `./mvnw verify` on Java 21: all tests, with a throwaway Postgres (Testcontainers) that also applies the whole Liquibase changelog |
+| Front end | `frontend/` changes, or the backend's wrapping paper list changes | type-check, the Vue and Node server tests, production build (Node 22) |
+| Liquibase changesets are append-only | every pull request | fails if a changeset that is already in `main` is edited, renamed or deleted |
+| **CI result** | always | one summary check that passes when everything that ran passed (skipped jobs count as fine) |
+
+Changes to the workflows or `.github/scripts/` re-run everything; pushes to `main` always run everything. Test reports are kept as run artifacts for 7 days, and the job summary shows the test counts. To run the same checks locally: `cd backend && ./mvnw verify` and `cd frontend && npm ci && npm run typecheck && npm test && npm run build`.
+
+Dependabot (`.github/dependabot.yml`) opens weekly pull requests for Maven, npm, GitHub Actions and Docker updates (minor and patch updates grouped). The actions in the workflow are pinned to commit SHAs, which Dependabot keeps current.
+
+**Requiring the checks:** in the repository's branch protection for `main`, require the status check named **CI result**. That single check is enough: it covers all the jobs above, even when the change detection skips some.
 
 ## Working on it
 - Pick an issue; each lists the issues it depends on.

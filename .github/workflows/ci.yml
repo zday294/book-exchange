@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel an older run of the same branch when a newer commit arrives.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Works out which parts a change touches, so a front-end-only change doesn't build the backend.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.detect.outputs.backend }}
+      frontend: ${{ steps.detect.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            .github/scripts/detect-changes.sh "$BASE" "$HEAD" | tee -a "$GITHUB_OUTPUT"
+          else
+            # Pushes to main always run everything.
+            printf 'backend=true\nfrontend=true\n' | tee -a "$GITHUB_OUTPUT"
+          fi
+
+  backend:
+    name: Backend (build and test)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      # The integration tests start a throwaway Postgres with Testcontainers (Docker is on the runner)
+      # and apply the whole Liquibase changelog to it, so a broken changelog fails here too.
+      - name: Build and run all tests
+        run: ./mvnw -B -ntp verify
+      - name: Test summary
+        if: always()
+        working-directory: .
+        run: .github/scripts/test-summary.py "Backend" "backend/target/surefire-reports/TEST-*.xml"
+      - name: Keep the test reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: backend-test-reports
+          path: backend/target/surefire-reports
+          retention-days: 7
+          if-no-files-found: ignore
+
+  frontend:
+    name: Front end (type-check, test, build)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      # The whole repo is checked out on purpose: one front end test compares the wrapping paper
+      # keys with the backend's list.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Type-check
+        run: npm run typecheck
+      # Runs the Vue app tests and the Node server's tests (the server tests live in frontend/server).
+      - name: Test
+        run: npx vitest run --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml
+      - name: Build
+        run: npm run build
+      - name: Test summary
+        if: always()
+        working-directory: .
+        run: .github/scripts/test-summary.py "Front end" "frontend/test-results/junit.xml"
+      - name: Keep the test report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-test-report
+          path: frontend/test-results
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # Merged Liquibase changesets must never be edited (Liquibase checksums them).
+  changelog:
+    name: Liquibase changesets are append-only
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - run: .github/scripts/check-changelog.sh "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
+
+  # The one check to require on main. Jobs skipped by the change detection count as fine, which
+  # avoids the GitHub gotcha where a required check that was skipped blocks the merge forever.
+  ci-result:
+    name: CI result
+    needs: [changes, backend, frontend, changelog]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Everything that ran must have passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for result in $RESULTS; do
+            case "$result" in
+              success|skipped) ;;
+              *) echo "::error::At least one job did not pass ($result)"; exit 1 ;;
+            esac
+          done
