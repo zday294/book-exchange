@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component;
 public class WrappingPapers {
 
     private static final List<String> KEY_LIST = List.of(
-            "candy-cane", "snowflake", "holly", "stars", "plaid", "polka-dot");
+            "candy-cane", "snowflake", "holly", "stars", "plaid",
+            "polka-dot", "sugar-cookie", "christmas-tree", "fireplace", "sleigh");
     private static final Set<String> KEYS = Set.copyOf(KEY_LIST);
 
     /** All accepted keys, in display order. */

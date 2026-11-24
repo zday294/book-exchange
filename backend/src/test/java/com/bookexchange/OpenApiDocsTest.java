@@ -99,7 +99,7 @@ class OpenApiDocsTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.properties.amazonUrl.description")
                         .value(org.hamcrest.Matchers.containsString("amazon.com, amzn.to, a.co")))
                 .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.properties.wrappingPaper.enum.length()")
-                        .value(6))
+                        .value(10))
                 .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.properties.wrappingPaper.enum[0]")
                         .value("candy-cane"));
     }
