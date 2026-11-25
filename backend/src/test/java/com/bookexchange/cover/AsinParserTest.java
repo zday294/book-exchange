@@ -56,4 +56,16 @@ class AsinParserTest {
         assertThat(Isbn.isValidIsbn10("12345")).isFalse();
         assertThat(Isbn.isValidIsbn10(null)).isFalse();
     }
+
+    @Test
+    void isbn13CheckAcceptsOnlyRealBookNumbers() {
+        assertThat(Isbn.isValidIsbn13("9780547928227")).isTrue();
+        assertThat(Isbn.isValidIsbn13("9780547928228")).isFalse(); // check digit does not match
+        assertThat(Isbn.isValidIsbn13("9791032305690")).isTrue();  // 979 prefix
+        assertThat(Isbn.isValidIsbn13("4006381333931")).isFalse(); // valid EAN-13 but not a book (no 978/979)
+        assertThat(Isbn.isValidIsbn13("978054792822")).isFalse();  // 12 digits
+        assertThat(Isbn.isValidIsbn13("97805479282270")).isFalse(); // 14 digits
+        assertThat(Isbn.isValidIsbn13("978054792822X")).isFalse();
+        assertThat(Isbn.isValidIsbn13(null)).isFalse();
+    }
 }
