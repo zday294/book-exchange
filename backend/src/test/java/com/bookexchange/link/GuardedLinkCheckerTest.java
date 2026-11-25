@@ -2,6 +2,9 @@ package com.bookexchange.link;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.bookexchange.net.PinnedFetcher;
+import com.bookexchange.net.Transport;
+import com.bookexchange.validation.BookLinkProperties;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
@@ -17,7 +20,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class GuardedLinkCheckerTest {
 
     private static final List<String> HOSTS = List.of("amazon.com", "amzn.to", "a.co", "barnesandnoble.com", "bn.com");
-    private static final LinkCheckProperties PROPS = new LinkCheckProperties(true, 2000, 4000, 5);
+    private static final LinkCheckProperties PROPS = new LinkCheckProperties(true, 2000, 4000, 5, 0); // cache off here
 
     record Call(String method, URI uri, InetAddress address) {}
 
@@ -28,11 +31,11 @@ class GuardedLinkCheckerTest {
         IOException failWith;
 
         @Override
-        public Reply send(String method, URI uri, InetAddress address, int connectTimeoutMs, long deadlineNanos)
-                throws IOException {
-            calls.add(new Call(method, uri, address));
+        public Reply send(Request request) throws IOException {
+            Call call = new Call(request.method(), request.uri(), request.address());
+            calls.add(call);
             if (failWith != null) throw failWith;
-            return script.apply(new Call(method, uri, address));
+            return script.apply(call);
         }
 
         List<String> methods() { return calls.stream().map(Call::method).toList(); }
@@ -52,9 +55,13 @@ class GuardedLinkCheckerTest {
     }
 
     private LinkStatus check(String url) {
-        GuardedLinkChecker checker = new GuardedLinkChecker(PROPS, HOSTS, GuardedLinkChecker.Policy.PRODUCTION, transport,
+        return checker(PROPS, System::nanoTime).check(URI.create(url));
+    }
+
+    private GuardedLinkChecker checker(LinkCheckProperties props, java.util.function.LongSupplier clock) {
+        var fetcher = new PinnedFetcher(PinnedFetcher.Policy.PRODUCTION, transport,
                 host -> dns.getOrDefault(host, new InetAddress[] {PUBLIC}));
-        return checker.check(URI.create(url));
+        return new GuardedLinkChecker(props, new BookLinkProperties(HOSTS), fetcher, clock);
     }
 
     private static Transport.Reply redirect(String to) { return new Transport.Reply(301, to); }
@@ -190,8 +197,9 @@ class GuardedLinkCheckerTest {
 
     @Test
     void aHostThatDoesNotResolveIsUnverified() {
-        GuardedLinkChecker checker = new GuardedLinkChecker(PROPS, HOSTS, GuardedLinkChecker.Policy.PRODUCTION, transport,
+        var fetcher = new PinnedFetcher(PinnedFetcher.Policy.PRODUCTION, transport,
                 host -> { throw new java.net.UnknownHostException(host); });
+        var checker = new GuardedLinkChecker(PROPS, new BookLinkProperties(HOSTS), fetcher, System::nanoTime);
         assertThat(checker.check(URI.create("https://www.amazon.com/dp/1"))).isEqualTo(LinkStatus.UNVERIFIED);
         assertThat(transport.calls).isEmpty();
     }
@@ -215,5 +223,81 @@ class GuardedLinkCheckerTest {
     void aLinkThatIsNotAllowedIsNeverVisitedEvenIfAskedDirectly(String url) {
         assertThat(check(url)).isEqualTo(LinkStatus.UNVERIFIED);
         assertThat(transport.calls).isEmpty();
+    }
+
+    // ---- remembering definite answers ----
+
+    private static final LinkCheckProperties CACHED = new LinkCheckProperties(true, 2000, 4000, 5, 10);
+
+    @Test
+    void aDefiniteAnswerIsRememberedForTheSameExactLink() {
+        long[] now = {0};
+        var checker = checker(CACHED, () -> now[0]);
+        URI link = URI.create("https://www.amazon.com/dp/054792822X");
+
+        assertThat(checker.check(link)).isEqualTo(LinkStatus.OK);
+        int callsAfterFirst = transport.calls.size();
+        assertThat(checker.check(link)).isEqualTo(LinkStatus.OK);
+        assertThat(transport.calls).hasSize(callsAfterFirst); // no second visit
+
+        // a different link (the typo fixed) is a fresh question
+        assertThat(checker.check(URI.create("https://www.amazon.com/dp/0000000000"))).isEqualTo(LinkStatus.OK);
+        assertThat(transport.calls.size()).isGreaterThan(callsAfterFirst);
+    }
+
+    @Test
+    void aRememberedNotFoundIsAlsoRememberedButOnlyForTenMinutes() {
+        long[] now = {0};
+        transport.script = c -> new Transport.Reply(404, null);
+        var checker = checker(CACHED, () -> now[0]);
+        URI link = URI.create("https://www.amazon.com/dp/0000000000");
+
+        assertThat(checker.check(link)).isEqualTo(LinkStatus.NOT_FOUND);
+        int visits = transport.calls.size();
+        now[0] = java.util.concurrent.TimeUnit.MINUTES.toNanos(9);
+        assertThat(checker.check(link)).isEqualTo(LinkStatus.NOT_FOUND);
+        assertThat(transport.calls).hasSize(visits); // still remembered
+
+        // the page was fixed in the meantime; after ten minutes the store is asked again
+        transport.script = c -> new Transport.Reply(200, null);
+        now[0] = java.util.concurrent.TimeUnit.MINUTES.toNanos(11);
+        assertThat(checker.check(link)).isEqualTo(LinkStatus.OK);
+        assertThat(transport.calls.size()).isGreaterThan(visits);
+    }
+
+    @Test
+    void couldntTellIsNeverRemembered() {
+        long[] now = {0};
+        transport.script = c -> new Transport.Reply(429, null);
+        var checker = checker(CACHED, () -> now[0]);
+        URI link = URI.create("https://www.amazon.com/dp/054792822X");
+
+        assertThat(checker.check(link)).isEqualTo(LinkStatus.UNVERIFIED);
+        transport.script = c -> new Transport.Reply(200, null); // the rate limit is over
+        assertThat(checker.check(link)).isEqualTo(LinkStatus.OK);
+    }
+
+    @Test
+    void theCacheCanBeSwitchedOff() {
+        transport.script = c -> new Transport.Reply(200, null);
+        URI link = URI.create("https://www.amazon.com/dp/054792822X");
+        var checker = checker(PROPS, System::nanoTime); // cache-minutes 0
+        checker.check(link);
+        int visits = transport.calls.size();
+        checker.check(link);
+        assertThat(transport.calls.size()).isEqualTo(visits * 2);
+    }
+
+    @Test
+    void theCacheStaysBounded() {
+        var cache = new LinkResultCache(10, () -> 0L);
+        for (int i = 0; i < LinkResultCache.MAX_ENTRIES * 3; i++) {
+            cache.put("https://www.amazon.com/dp/" + i, LinkStatus.OK);
+        }
+        // never more than the cap is held; the newest entry is always there
+        assertThat(cache.get("https://www.amazon.com/dp/" + (LinkResultCache.MAX_ENTRIES * 3 - 1))).contains(LinkStatus.OK);
+        long held = java.util.stream.IntStream.range(0, LinkResultCache.MAX_ENTRIES * 3)
+                .filter(i -> cache.get("https://www.amazon.com/dp/" + i).isPresent()).count();
+        assertThat(held).isLessThanOrEqualTo(LinkResultCache.MAX_ENTRIES);
     }
 }

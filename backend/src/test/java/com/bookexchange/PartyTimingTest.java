@@ -36,7 +36,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * time of a turn is set directly in the database, and the timer's work is called by hand. So these tests say
  * precisely what happens at, before and after the end of a turn, without waiting for real time to pass.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"app.link-check.enabled=false", "app.party.turn-seconds=120", "app.party.offline-grace-seconds=60", "app.party.tick-millis=600000",
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"app.party.turn-seconds=120", "app.party.offline-grace-seconds=60", "app.party.tick-millis=600000",
         "app.events.heartbeat-millis=200"})
 @AutoConfigureMockMvc
 @Import(PostgresTestConfig.class)

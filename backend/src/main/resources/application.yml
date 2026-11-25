@@ -65,6 +65,8 @@ app:
     connect-timeout-ms: ${LINK_CHECK_CONNECT_TIMEOUT_MS:2000}
     total-timeout-ms: ${LINK_CHECK_TOTAL_TIMEOUT_MS:4000}
     max-redirects: ${LINK_CHECK_MAX_REDIRECTS:5}
+    # How long a definite answer (page exists / not found) is remembered per exact link; 0 = off. "Couldn't tell" is never remembered.
+    cache-minutes: ${LINK_CHECK_CACHE_MINUTES:10}
   cover:
     # Finds each book's cover after it is submitted (see backend/README.md). Switch off with COVER_LOOKUP_ENABLED=false.
     enabled: ${COVER_LOOKUP_ENABLED:true}

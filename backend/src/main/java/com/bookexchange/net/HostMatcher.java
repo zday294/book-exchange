@@ -1,4 +1,4 @@
-package com.bookexchange.cover;
+package com.bookexchange.net;
 
 import java.util.List;
 import java.util.Locale;
