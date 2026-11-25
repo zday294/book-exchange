@@ -64,11 +64,15 @@ Every pull request (and every push to `main`) is built and tested by GitHub Acti
 | Job | Runs when | What it does |
 |---|---|---|
 | Backend | `backend/` changes | `./mvnw verify` on Java 21: all tests, with a throwaway Postgres (Testcontainers) that also applies the whole Liquibase changelog |
-| Front end | `frontend/` changes, or the backend's wrapping paper list changes | type-check, the Vue and Node server tests, production build (Node 22) |
+| Front end | `frontend/` changes, or the backend's wrapping paper list changes | lint (ESLint), type-check, the Vue and Node server tests, production build (Node 22) |
+| Docker images | a Dockerfile, `docker-compose.yml`, `package*.json`, `pom.xml` or the Node server changes | builds both images (layers cached), starts the whole stack with `docker compose`, and checks that all services are healthy, `/` is served, `/api/exchanges/XMAS2026` works through the front end's proxy, and both containers run as non-root. Container logs are printed on failure and everything is removed afterwards |
+| Liquibase upgrade and rollback | pull requests that change `backend/src/main/resources/db/` | applies `main`'s changelog to a throwaway Postgres, then the pull request's on top; rolls the new changesets back (the schema must match `main`'s exactly) and applies them again |
 | Liquibase changesets are append-only | every pull request | fails if a changeset that is already in `main` is edited, renamed or deleted |
 | **CI result** | always | one summary check that passes when everything that ran passed (skipped jobs count as fine) |
 
-Changes to the workflows or `.github/scripts/` re-run everything; pushes to `main` always run everything. Test reports are kept as run artifacts for 7 days, and the job summary shows the test counts. To run the same checks locally: `cd backend && ./mvnw verify` and `cd frontend && npm ci && npm run typecheck && npm test && npm run build`.
+Changes to the workflows or `.github/scripts/` re-run everything; pushes to `main` always run everything. Test reports are kept as run artifacts for 7 days, and the job summary shows the test counts. To run the same checks locally: `cd backend && ./mvnw verify` and `cd frontend && npm ci && npm run lint && npm run typecheck && npm test && npm run build`; the Docker check with `SMOKE_BUILD=true .github/scripts/smoke-test.sh` (uses its own project name and ports, so it leaves your own `docker compose` data alone); and the Liquibase check with `.github/scripts/check-liquibase.sh <base-commit>`.
+
+There is deliberately **no backend formatter or linter** (Spotless, Checkstyle): the compiler, the 400+ tests and review cover it, and a formatter would mostly add noisy diffs (Lombok, long test files). Add one in its own change if that stops being true.
 
 Dependabot (`.github/dependabot.yml`) opens weekly pull requests for Maven, npm, GitHub Actions and Docker updates (minor and patch updates grouped). Major-version updates for Maven, npm and Docker are deliberately not proposed, so the project stays on Spring Boot 3, Java 21, Vite 7 and so on until someone upgrades by hand; GitHub Actions majors are still proposed. Security updates are unaffected. The actions in the workflow are pinned to commit SHAs, which Dependabot keeps current.
 
