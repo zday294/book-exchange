@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { Book } from '../api/books'
+import { viewLinkLabel } from '../lib/bookLink'
 import ModalDialog from './ModalDialog.vue'
 
 /** Shown to the person who just claimed a book: the cover, the title and their link. */
@@ -28,14 +29,14 @@ const showCover = computed(() => !!props.book.coverImageUrl && !coverFailed.valu
     </div>
     <p class="from">Brought by {{ book.submitterName }}</p>
     <a
-      v-if="book.amazonUrl"
+      v-if="book.bookUrl"
       class="button"
-      :href="book.amazonUrl"
+      :href="book.bookUrl"
       target="_blank"
       rel="noopener noreferrer"
       data-test="reveal-link"
     >
-      View on Amazon
+      {{ viewLinkLabel(book.bookUrl) }}
     </a>
     <div class="actions">
       <button type="button" class="secondary" data-autofocus data-test="reveal-close" @click="$emit('close')">

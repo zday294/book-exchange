@@ -33,7 +33,7 @@ function stubApi(
 }
 
 const created = (over = {}) => ({
-  id: 7, submitterName: 'Zach', bookTitle: 'The Hobbit', amazonUrl: URL, wrappingPaper: 'holly', claimed: false, ...over,
+  id: 7, submitterName: 'Zach', bookTitle: 'The Hobbit', bookUrl: URL, wrappingPaper: 'holly', claimed: false, ...over,
 })
 
 async function mountPage() {
@@ -93,7 +93,7 @@ describe('submit page', () => {
 
       expect(wrapper.get('[data-test=error-submitterName]').text()).toBeTruthy()
       expect(wrapper.get('[data-test=error-bookTitle]').text()).toBeTruthy()
-      expect(wrapper.get('[data-test=error-amazonUrl]').text()).toBeTruthy()
+      expect(wrapper.get('[data-test=error-bookUrl]').text()).toBeTruthy()
       expect(wrapper.get('[data-test=error-wrappingPaper]').text()).toMatch(/choose a wrapping paper/i)
       expect(fetchMock.mock.calls.some((c) => c[1].method === 'POST')).toBe(false)
     })
@@ -106,12 +106,12 @@ describe('submit page', () => {
       expect(document.activeElement).toBe(wrapper.get('#title').element)
     })
 
-    it('rejects a link that is not an Amazon link', async () => {
+    it('rejects a link that is not an Amazon or Barnes & Noble link', async () => {
       const fetchMock = stubApi()
       const { wrapper } = await mountPage()
       await fill(wrapper, { title: 'The Hobbit', url: 'https://example.com/book', paper: 'holly' })
       await submit(wrapper)
-      expect(wrapper.get('[data-test=error-amazonUrl]').text()).toMatch(/amazon/i)
+      expect(wrapper.get('[data-test=error-bookUrl]').text()).toMatch(/amazon.*barnes & noble/i)
       expect(fetchMock.mock.calls.some((c) => c[1].method === 'POST')).toBe(false)
     })
 
@@ -150,11 +150,29 @@ describe('submit page', () => {
       const post = fetchMock.mock.calls.find((c) => c[1].method === 'POST')!
       expect(post[0]).toBe('/api/exchanges/K7M2PXA/books')
       expect(JSON.parse(post[1].body)).toEqual({
-        submitterName: 'Zach', bookTitle: 'The Hobbit', amazonUrl: URL, wrappingPaper: 'holly',
+        submitterName: 'Zach', bookTitle: 'The Hobbit', bookUrl: URL, wrappingPaper: 'holly',
       })
       expect(wrapper.get('[data-test=success] h1').text()).toBe('Your book is under the tree!')
       expect(wrapper.get('[data-test=success] svg').attributes('aria-label')).toContain('Holly')
       expect(wrapper.find('[data-test=form]').exists()).toBe(false)
+    })
+
+    it('sends a Barnes & Noble link just like an Amazon one', async () => {
+      const bn = 'https://www.barnesandnoble.com/w/the-hobbit-j-r-r-tolkien/1100054405?ean=9780547928227'
+      const fetchMock = stubApi(() => json({ ...created(), bookUrl: bn }, 201))
+      const { wrapper } = await mountPage()
+      await fill(wrapper, { title: 'The Hobbit', url: bn, paper: 'holly' })
+      await submit(wrapper)
+
+      expect(sent(fetchMock).bookUrl).toBe(bn)
+      expect(wrapper.find('[data-test=success]').exists()).toBe(true)
+    })
+
+    it('labels the link field for both stores', async () => {
+      stubApi()
+      const { wrapper } = await mountPage()
+      expect(wrapper.get('label[for=url]').text()).toBe('Link to the book')
+      expect(wrapper.get('#url-hint').text()).toContain('Amazon or Barnes & Noble')
     })
 
     it('links to the exchange page afterwards', async () => {
@@ -199,9 +217,9 @@ describe('submit page', () => {
 
     it('shows 400 problems next to the fields and keeps what was typed', async () => {
       const { wrapper } = await submitWith(() =>
-        json({ error: 'Validation failed', details: ['amazonUrl: must be an https link to Amazon', 'bookTitle: size must be between 0 and 300'] }, 400),
+        json({ error: 'Validation failed', details: ['bookUrl: must be an https link to Amazon', 'bookTitle: size must be between 0 and 300'] }, 400),
       )
-      expect(wrapper.get('[data-test=error-amazonUrl]').text()).toContain('Amazon')
+      expect(wrapper.get('[data-test=error-bookUrl]').text()).toContain('Amazon')
       expect(wrapper.get('[data-test=error-bookTitle]').text()).toContain('300')
       expect((wrapper.get('#title').element as HTMLInputElement).value).toBe('The Hobbit')
       expect((wrapper.get('#url').element as HTMLInputElement).value).toBe(URL)

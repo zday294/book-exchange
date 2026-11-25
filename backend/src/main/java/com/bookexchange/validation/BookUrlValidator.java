@@ -8,11 +8,11 @@ import java.util.Locale;
 import org.springframework.stereotype.Component;
 
 @Component
-public class AmazonUrlValidator implements ConstraintValidator<AmazonUrl, String> {
+public class BookUrlValidator implements ConstraintValidator<BookUrl, String> {
 
-    private final AmazonProperties properties;
+    private final BookLinkProperties properties;
 
-    public AmazonUrlValidator(AmazonProperties properties) {
+    public BookUrlValidator(BookLinkProperties properties) {
         this.properties = properties;
     }
 

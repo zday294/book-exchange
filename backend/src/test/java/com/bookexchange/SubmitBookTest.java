@@ -47,7 +47,7 @@ class SubmitBookTest extends AbstractIntegrationTest {
         return new java.util.HashMap<>(Map.of(
                 "submitterName", "Zach",
                 "bookTitle", "The Hobbit",
-                "amazonUrl", "https://www.amazon.com/dp/0547928221",
+                "bookUrl", "https://www.amazon.com/dp/0547928221",
                 "wrappingPaper", "candy-cane"));
     }
 
@@ -66,7 +66,7 @@ class SubmitBookTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.submitterName").value("Zach"))
                 .andExpect(jsonPath("$.bookTitle").value("The Hobbit"))
-                .andExpect(jsonPath("$.amazonUrl").value("https://www.amazon.com/dp/0547928221"))
+                .andExpect(jsonPath("$.bookUrl").value("https://www.amazon.com/dp/0547928221"))
                 .andExpect(jsonPath("$.wrappingPaper").value("candy-cane"))
                 .andExpect(jsonPath("$.claimed").value(false));
 
@@ -78,6 +78,19 @@ class SubmitBookTest extends AbstractIntegrationTest {
                 "SELECT e.code FROM exchange e JOIN book_submission b ON b.exchange_id = e.id WHERE b.id = ?",
                 String.class, saved.getId());
         assertThat(exchangeCode).isEqualTo("XMAS2026");
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "https://www.barnesandnoble.com/w/the-hobbit-j-r-r-tolkien/1100054405?ean=9780547928227",
+            "https://www.bn.com/w/the-hobbit/1100054405"})
+    void barnesAndNobleLinksAreAccepted(String link) throws Exception {
+        Map<String, String> body = valid();
+        body.put("bookUrl", link);
+        submit("XMAS2026", body)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.bookUrl").value(link));
+        assertThat(books.findAll()).extracting(BookSubmission::getBookUrl).containsExactly(link);
     }
 
     @Test
@@ -157,18 +170,24 @@ class SubmitBookTest extends AbstractIntegrationTest {
         return Stream.of(
                 Arguments.of("missing submitterName", without("submitterName"), "submitterName"),
                 Arguments.of("missing bookTitle", without("bookTitle"), "bookTitle"),
-                Arguments.of("missing amazonUrl", without("amazonUrl"), "amazonUrl"),
+                Arguments.of("missing bookUrl", without("bookUrl"), "bookUrl"),
                 Arguments.of("missing wrappingPaper", without("wrappingPaper"), "wrappingPaper"),
                 Arguments.of("blank submitterName", with("submitterName", "   "), "submitterName"),
                 Arguments.of("blank bookTitle", with("bookTitle", ""), "bookTitle"),
                 Arguments.of("submitterName too long", with("submitterName", "x".repeat(101)), "submitterName"),
                 Arguments.of("bookTitle too long", with("bookTitle", "x".repeat(301)), "bookTitle"),
-                Arguments.of("amazonUrl too long", with("amazonUrl",
-                        "https://www.amazon.com/dp/" + "x".repeat(2048)), "amazonUrl"),
-                Arguments.of("http link", with("amazonUrl", "http://www.amazon.com/dp/1"), "amazonUrl"),
-                Arguments.of("non-Amazon host", with("amazonUrl", "https://example.com/dp/1"), "amazonUrl"),
-                Arguments.of("lookalike host", with("amazonUrl", "https://amazon.com.evil.com/dp/1"), "amazonUrl"),
-                Arguments.of("not a url", with("amazonUrl", "not a url"), "amazonUrl"),
+                Arguments.of("bookUrl too long", with("bookUrl",
+                        "https://www.amazon.com/dp/" + "x".repeat(2048)), "bookUrl"),
+                Arguments.of("http link", with("bookUrl", "http://www.amazon.com/dp/1"), "bookUrl"),
+                Arguments.of("non-Amazon host", with("bookUrl", "https://example.com/dp/1"), "bookUrl"),
+                Arguments.of("lookalike host", with("bookUrl", "https://amazon.com.evil.com/dp/1"), "bookUrl"),
+                Arguments.of("other bookstore", with("bookUrl", "https://bookshop.org/a/1/9780547928227"), "bookUrl"),
+                Arguments.of("lookalike Barnes & Noble host", with("bookUrl", "https://evilbarnesandnoble.com/w/x/1"), "bookUrl"),
+                Arguments.of("Barnes & Noble only as a prefix", with("bookUrl", "https://barnesandnoble.com.evil.com/w/x/1"), "bookUrl"),
+                Arguments.of("http Barnes & Noble link", with("bookUrl", "http://www.barnesandnoble.com/w/x/1"), "bookUrl"),
+                Arguments.of("odd port on Barnes & Noble", with("bookUrl", "https://www.barnesandnoble.com:8443/w/x/1"), "bookUrl"),
+                Arguments.of("credentials in a Barnes & Noble link", with("bookUrl", "https://u:p@www.barnesandnoble.com/w/x/1"), "bookUrl"),
+                Arguments.of("not a url", with("bookUrl", "not a url"), "bookUrl"),
                 Arguments.of("unknown paper", with("wrappingPaper", "neon-skulls"), "wrappingPaper"));
     }
 

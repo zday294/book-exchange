@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { Book } from '../api/books'
+import { viewLinkLabel } from '../lib/bookLink'
 import type { Claimability } from '../lib/claim'
 import { presentLayout } from '../lib/layout'
 import WrappedPresent from '../wrapping/WrappedPresent.vue'
@@ -8,7 +9,7 @@ import WrappedPresent from '../wrapping/WrappedPresent.vue'
 /**
  * One book in the pile. Unclaimed: a wrapped present that reveals nothing but who brought it.
  * Claimed: opened and dimmed, showing the cover, the title and who has it ("Taken").
- * The Amazon link is only ever present in the data for the claimer, so it is only shown then.
+ * The book link is only ever present in the data for the claimer, so it is only shown then.
  */
 const props = defineProps<{ book: Book; claimability?: Claimability }>()
 const emit = defineEmits<{ claim: [book: Book] }>()
@@ -76,14 +77,14 @@ const takenText = computed(() =>
       <p class="taken" data-test="taken">🎁 {{ takenText }}</p>
       <p class="from">From {{ book.submitterName }}</p>
       <a
-        v-if="book.amazonUrl"
-        class="button amazon"
-        :href="book.amazonUrl"
+        v-if="book.bookUrl"
+        class="button book-link"
+        :href="book.bookUrl"
         target="_blank"
         rel="noopener noreferrer"
-        data-test="amazon"
+        data-test="book-link"
       >
-        View on Amazon
+        {{ viewLinkLabel(book.bookUrl) }}
       </a>
     </article>
   </li>
@@ -167,7 +168,7 @@ const takenText = computed(() =>
   font-size: 0.8rem;
   color: var(--color-muted);
 }
-.amazon {
+.book-link {
   margin-top: 0.5rem;
   font-size: 0.85rem;
 }

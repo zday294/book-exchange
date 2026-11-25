@@ -10,6 +10,7 @@ import ConfirmClaimDialog from '../components/ConfirmClaimDialog.vue'
 import HostSection from '../components/HostSection.vue'
 import PartyQueue from '../components/PartyQueue.vue'
 import TreeIllustration from '../components/TreeIllustration.vue'
+import { viewLinkLabel } from '../lib/bookLink'
 import { claimability, claimFailureMessage } from '../lib/claim'
 import { forgetExchange, rememberExchange } from '../lib/lastExchange'
 import { getMySubmission } from '../lib/mySubmission'
@@ -135,7 +136,7 @@ function connectLive() {
     },
     onBookClaimed(e) {
       const before = books.value.find((b) => b.id === e.id)
-      if (before?.claimed && before.amazonUrl) return // my own claim, already shown with its link
+      if (before?.claimed && before.bookUrl) return // my own claim, already shown with its link
       books.value = books.value.map((b) =>
         b.id === e.id
           ? {
@@ -319,7 +320,7 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
         <template v-if="mySubmittedBook"
           >you have submitted a book<template v-if="mySubmission">: <em>{{ mySubmission.bookTitle }}</em>
           <a
-            :href="mySubmission.amazonUrl"
+            :href="mySubmission.bookUrl"
             target="_blank"
             rel="noopener noreferrer"
             data-test="my-submitted-link"
@@ -334,12 +335,12 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
         <template v-if="myBook">
           you claimed <em>{{ myBook.bookTitle }}</em>
           <a
-            v-if="myBook.amazonUrl"
-            :href="myBook.amazonUrl"
+            v-if="myBook.bookUrl"
+            :href="myBook.bookUrl"
             target="_blank"
             rel="noopener noreferrer"
-            data-test="my-amazon"
-            >View on Amazon</a
+            data-test="my-book-link"
+            >{{ viewLinkLabel(myBook.bookUrl) }}</a
           >
         </template>
         <template v-else>you haven't claimed a book yet.</template>

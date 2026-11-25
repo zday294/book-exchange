@@ -20,7 +20,7 @@ const pile = ref<Book[] | null>(null)
 const form = reactive<SubmitFields>({
   submitterName: participant.name, // prefilled from the saved name (#8); editable
   bookTitle: '',
-  amazonUrl: '',
+  bookUrl: '',
   wrappingPaper: '',
 })
 // Changing the name (header dialog) changes who is submitting, unless the field was edited by hand.
@@ -38,7 +38,7 @@ const submitted = ref<SubmittedBook | null>(null)
 const FIELD_IDS: Record<keyof SubmitFields, string> = {
   submitterName: 'submitter',
   bookTitle: 'title',
-  amazonUrl: 'url',
+  bookUrl: 'url',
   wrappingPaper: 'paper-picker',
 }
 
@@ -83,15 +83,15 @@ async function submit() {
     const book = await submitBook(props.exchangeCode, {
       submitterName: form.submitterName.trim(),
       bookTitle: form.bookTitle.trim(),
-      amazonUrl: form.amazonUrl.trim(),
+      bookUrl: form.bookUrl.trim(),
       wrappingPaper: form.wrappingPaper,
     })
     // Like joining or hosting: whoever just submitted is the current user in this browser.
     participant.setName(book.submitterName)
-    saveMySubmission(props.exchangeCode, book.submitterName, { bookTitle: book.bookTitle, amazonUrl: book.amazonUrl })
+    saveMySubmission(props.exchangeCode, book.submitterName, { bookTitle: book.bookTitle, bookUrl: book.bookUrl })
     submitted.value = book
     form.bookTitle = ''
-    form.amazonUrl = ''
+    form.bookUrl = ''
     form.wrappingPaper = '' // the name stays
   } catch (e) {
     if (e instanceof ApiError && Object.keys(e.fieldErrors).length > 0) {
@@ -178,20 +178,20 @@ async function submit() {
       />
       <p id="title-error" class="error" data-test="error-bookTitle">{{ errors.bookTitle }}</p>
 
-      <label for="url">Amazon link</label>
+      <label for="url">Link to the book</label>
       <input
         id="url"
-        v-model="form.amazonUrl"
+        v-model="form.bookUrl"
         type="url"
         inputmode="url"
         autocomplete="off"
-        placeholder="https://www.amazon.com/dp/..."
-        :aria-invalid="!!errors.amazonUrl"
+        placeholder="https://www.amazon.com/dp/... or https://www.barnesandnoble.com/w/..."
+        :aria-invalid="!!errors.bookUrl"
         aria-describedby="url-error url-hint"
-        @input="clear('amazonUrl')"
+        @input="clear('bookUrl')"
       />
-      <p id="url-hint" class="hint">Only the person who claims the book will see this link.</p>
-      <p id="url-error" class="error" data-test="error-amazonUrl">{{ errors.amazonUrl }}</p>
+      <p id="url-hint" class="hint">Amazon or Barnes &amp; Noble. Only the person who claims the book will see this link.</p>
+      <p id="url-error" class="error" data-test="error-bookUrl">{{ errors.bookUrl }}</p>
 
       <div id="paper-picker" tabindex="-1">
         <WrappingPaperPicker v-model="form.wrappingPaper" @update:model-value="clear('wrappingPaper')" />

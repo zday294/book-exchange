@@ -33,7 +33,7 @@ const claimedByAlex: Book = {
 const claimedByMe: Book = {
   id: 3, submitterName: 'Pat', wrappingPaper: 'plaid', claimed: true, viewerIsClaimer: true,
   claimedByName: 'Zach', claimedAt: '2026-12-01T18:05:00Z', bookTitle: 'Dune',
-  coverImageUrl: 'https://example.com/dune.jpg', amazonUrl: URL,
+  coverImageUrl: 'https://example.com/dune.jpg', bookUrl: URL,
 }
 
 function json(body: unknown, status = 200) {
@@ -109,23 +109,38 @@ describe('exchange page', () => {
     expect(slot.find('svg').exists()).toBe(false) // no longer wrapped
   })
 
-  it('shows no Amazon link to anyone but the claimer', async () => {
+  it('shows no book link to anyone but the claimer', async () => {
     stubApi([unclaimed, claimedByAlex])
     const { wrapper } = await mountPage()
-    expect(wrapper.find('[data-test=amazon]').exists()).toBe(false)
+    expect(wrapper.find('[data-test=book-link]').exists()).toBe(false)
     expect(wrapper.find('a[href*="amazon"]').exists()).toBe(false)
   })
 
-  it('shows the claimer their own book with "You claimed this" and a safe Amazon link', async () => {
+  it('shows the claimer their own book with "You claimed this" and a safe link labelled with the store', async () => {
     stubApi([unclaimed, claimedByMe])
     const { wrapper } = await mountPage()
     const slot = wrapper.get('[data-test=book-3]')
 
     expect(slot.get('[data-test=taken]').text()).toContain('You claimed this')
-    const link = slot.get('[data-test=amazon]')
+    const link = slot.get('[data-test=book-link]')
     expect(link.attributes('href')).toBe(URL)
     expect(link.attributes('target')).toBe('_blank')
     expect(link.attributes('rel')).toContain('noopener')
+  })
+
+  it('says "View on Amazon" or "View on Barnes & Noble" depending on the claimer\'s link', async () => {
+    const bn = 'https://www.barnesandnoble.com/w/dune-frank-herbert/1100054405?ean=9780441172719'
+    stubApi([unclaimed, { ...claimedByMe, bookUrl: bn }])
+    const { wrapper } = await mountPage()
+    const link = wrapper.get('[data-test=book-3] [data-test=book-link]')
+    expect(link.text()).toBe('View on Barnes & Noble')
+    expect(link.attributes('href')).toBe(bn)
+  })
+
+  it('says "View on Amazon" for an Amazon link', async () => {
+    stubApi([unclaimed, claimedByMe])
+    const { wrapper } = await mountPage()
+    expect(wrapper.get('[data-test=book-3] [data-test=book-link]').text()).toBe('View on Amazon')
   })
 
   it('shows a placeholder with the title when there is no cover yet or it fails to load', async () => {
@@ -153,7 +168,7 @@ describe('exchange page', () => {
       stubApi([claimedByMe], { mode: 'CLAIM' })
       const { wrapper } = await mountPage()
       expect(wrapper.get('[data-test=my-status]').text()).toContain('you claimed Dune')
-      expect(wrapper.get('[data-test=my-amazon]').attributes('href')).toBe(URL)
+      expect(wrapper.get('[data-test=my-book-link]').attributes('href')).toBe(URL)
     })
 
     it('while gathering books, says you have not submitted a book', async () => {
@@ -164,7 +179,7 @@ describe('exchange page', () => {
     })
 
     it('while gathering books, says you submitted one and links to it', async () => {
-      saveMySubmission('K7M2PXA', 'zach', { bookTitle: 'Dune', amazonUrl: URL }) // name match ignores case
+      saveMySubmission('K7M2PXA', 'zach', { bookTitle: 'Dune', bookUrl: URL }) // name match ignores case
       stubApi([unclaimed]) // brought by Zach
       const { wrapper } = await mountPage()
       const status = wrapper.get('[data-test=my-status]')
@@ -181,7 +196,7 @@ describe('exchange page', () => {
     })
 
     it("does not show another person's remembered book", async () => {
-      saveMySubmission('K7M2PXA', 'Sam', { bookTitle: 'Secret', amazonUrl: URL })
+      saveMySubmission('K7M2PXA', 'Sam', { bookTitle: 'Secret', bookUrl: URL })
       stubApi([unclaimed]) // Zach's book; this browser's saved book is Sam's
       const { wrapper } = await mountPage()
       expect(wrapper.text()).not.toContain('Secret')
@@ -344,16 +359,16 @@ describe('exchange page', () => {
     it('reloads with the new name when you change who you are (so links follow the person)', async () => {
       const fetchMock = vi.fn().mockImplementation(async (url: string, init: { headers: Record<string, string> }) => {
         if (!url.endsWith('/books')) return json(exchange)
-        return json(init.headers['X-Participant-Name'] === 'Zach' ? [claimedByMe] : [{ ...claimedByMe, viewerIsClaimer: false, amazonUrl: undefined }])
+        return json(init.headers['X-Participant-Name'] === 'Zach' ? [claimedByMe] : [{ ...claimedByMe, viewerIsClaimer: false, bookUrl: undefined }])
       })
       vi.stubGlobal('fetch', fetchMock)
       const { wrapper, pinia } = await mountPage()
-      expect(wrapper.find('[data-test=amazon]').exists()).toBe(true)
+      expect(wrapper.find('[data-test=book-link]').exists()).toBe(true)
 
       useParticipantStore(pinia).setName('Sam')
       await flushPromises()
 
-      expect(wrapper.find('[data-test=amazon]').exists()).toBe(false)
+      expect(wrapper.find('[data-test=book-link]').exists()).toBe(false)
       expect(wrapper.get('[data-test=my-status]').text()).toContain('you have not submitted a book')
     })
 
@@ -375,7 +390,7 @@ describe('exchange page', () => {
       release(json([claimedByMe])) // Zach's answer, arriving late, must not overwrite Sam's view
       await flushPromises()
 
-      expect(wrapper.find('[data-test=amazon]').exists()).toBe(false)
+      expect(wrapper.find('[data-test=book-link]').exists()).toBe(false)
       expect(wrapper.findAll('[data-test=pile] > li')).toHaveLength(1)
     })
   })

@@ -3,7 +3,7 @@ import { api } from './client'
 /**
  * A book as the current viewer is allowed to see it. The server decides what is visible and
  * leaves hidden fields out entirely: an unclaimed book has no title, cover or link, and only the
- * claimer ever receives `amazonUrl`.
+ * claimer ever receives `bookUrl`.
  */
 export interface Book {
   id: number
@@ -17,7 +17,7 @@ export interface Book {
   claimedAt?: string
   bookTitle?: string
   coverImageUrl?: string
-  amazonUrl?: string
+  bookUrl?: string
 }
 
 export const getBooks = (exchangeCode: string) =>
@@ -26,7 +26,7 @@ export const getBooks = (exchangeCode: string) =>
 export interface SubmitBookRequest {
   submitterName: string
   bookTitle: string
-  amazonUrl: string
+  bookUrl: string
   wrappingPaper: string
 }
 
@@ -35,7 +35,7 @@ export interface SubmittedBook {
   id: number
   submitterName: string
   bookTitle: string
-  amazonUrl: string
+  bookUrl: string
   wrappingPaper: string
   claimed: boolean
 }

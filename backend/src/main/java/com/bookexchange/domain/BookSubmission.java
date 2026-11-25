@@ -35,8 +35,8 @@ public class BookSubmission {
     @Column(name = "book_title", nullable = false, length = 300)
     private String bookTitle;
 
-    @Column(name = "amazon_url", nullable = false, length = 2048)
-    private String amazonUrl;
+    @Column(name = "book_url", nullable = false, length = 2048)
+    private String bookUrl;
 
     @Column(length = 20)
     @Setter
@@ -64,11 +64,11 @@ public class BookSubmission {
     private Instant createdAt;
 
     public BookSubmission(Exchange exchange, String submitterName, String bookTitle,
-                          String amazonUrl, String wrappingPaper) {
+                          String bookUrl, String wrappingPaper) {
         this.exchange = exchange;
         this.submitterName = submitterName;
         this.bookTitle = bookTitle;
-        this.amazonUrl = amazonUrl;
+        this.bookUrl = bookUrl;
         this.wrappingPaper = wrappingPaper;
     }
 

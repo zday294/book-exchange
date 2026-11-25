@@ -1,6 +1,6 @@
 package com.bookexchange.book;
 
-import com.bookexchange.validation.AmazonUrl;
+import com.bookexchange.validation.BookUrl;
 import com.bookexchange.validation.WrappingPaper;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -15,14 +15,14 @@ public record SubmitBookRequest(
                 example = "The Hobbit")
         @NotBlank @Size(max = 300) String bookTitle,
         @Schema(example = "https://www.amazon.com/dp/0547928221")
-        @NotBlank @Size(max = 2048) @AmazonUrl String amazonUrl,
+        @NotBlank @Size(max = 2048) @BookUrl String bookUrl,
         @Schema(description = "Key of the wrapping paper design", example = "candy-cane")
         @NotBlank @Size(max = 50) @WrappingPaper String wrappingPaper) {
 
     public SubmitBookRequest {
         submitterName = trim(submitterName);
         bookTitle = trim(bookTitle);
-        amazonUrl = trim(amazonUrl);
+        bookUrl = trim(bookUrl);
         wrappingPaper = trim(wrappingPaper);
     }
 

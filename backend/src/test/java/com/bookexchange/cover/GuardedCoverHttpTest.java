@@ -2,7 +2,7 @@ package com.bookexchange.cover;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.bookexchange.validation.AmazonProperties;
+import com.bookexchange.validation.BookLinkProperties;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -102,7 +102,7 @@ class GuardedCoverHttpTest {
         CoverProperties props = new CoverProperties(true, "unused-%s", List.of("localhost"), 1000, totalMs, maxBytes, redirects);
         // Short links: "localhost" is the Amazon short-link host in this test; the redirect target is amazon.com
         // and is never fetched because the walk stops as soon as a URL contains an ASIN.
-        AmazonProperties amazon = new AmazonProperties(List.of("localhost", "amazon.com"));
+        BookLinkProperties amazon = new BookLinkProperties(List.of("localhost", "amazon.com"));
         return new GuardedCoverHttp(props, amazon, new GuardedCoverHttp.Policy(false, a -> true));
     }
 
@@ -159,7 +159,7 @@ class GuardedCoverHttpTest {
 
     private GuardedCoverHttp production() {
         CoverProperties props = new CoverProperties(true, "unused-%s", List.of("covers.openlibrary.org", "localhost"), 500, 2000, 1000, 3);
-        return new GuardedCoverHttp(props, new AmazonProperties(List.of("amazon.com", "a.co", "localhost")));
+        return new GuardedCoverHttp(props, new BookLinkProperties(List.of("amazon.com", "a.co", "localhost")));
     }
 
     @Test

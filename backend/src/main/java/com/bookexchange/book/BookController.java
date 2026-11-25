@@ -30,7 +30,7 @@ public class BookController {
 
     private static final String ERR_400 = """
             {"error": "Validation failed", "details": [
-              "amazonUrl: must be an https link to Amazon (amazon.com, amzn.to or a.co)",
+              "bookUrl: must be an https link to Amazon or Barnes & Noble (amazon.com, amzn.to, a.co, barnesandnoble.com or bn.com)",
               "wrappingPaper: must be a known wrapping paper"]}""";
     private static final String ERR_404 = "{\"error\": \"Exchange not found\", \"details\": []}";
     private static final String ERR_409_CLOSED =
@@ -79,7 +79,7 @@ public class BookController {
     private static final String VIEWER_HELP = "The viewer is identified by the optional `X-Participant-Name` "
             + "header (name only, no authentication). Without it you are an anonymous viewer. Hidden fields are "
             + "omitted, never sent. Unclaimed books show only id, submitter, wrapping paper and `claimed: false`. "
-            + "Claimed books also show the claimer, claim time, title and cover. The Amazon link is returned "
+            + "Claimed books also show the claimer, claim time, title and cover. The book link is returned "
             + "only to the claimer (name matched case-insensitively).";
     private static final String ERR_404_BOOK = "{\"error\": \"Book not found\", \"details\": []}";
 
@@ -126,7 +126,7 @@ public class BookController {
 
     @Operation(summary = "Claim a book",
             description = "Claims an unclaimed book for the named participant and returns it in the "
-                    + "claimer's view (title, cover, claimer and the Amazon link). Safe under concurrency: "
+                    + "claimer's view (title, cover, claimer and the book link). Safe under concurrency: "
                     + "of simultaneous claims for one book, or by one person, exactly one succeeds.")
     @ApiResponse(responseCode = "200", description = "Claimed; the body is the claimer's view of the book")
     @ApiResponse(responseCode = "400", description = "Missing, blank or too-long participantName",

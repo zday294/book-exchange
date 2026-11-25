@@ -8,7 +8,7 @@ import java.util.List;
 public record ApiError(
         @Schema(description = "Short, human-readable message", example = "Validation failed") String error,
         @Schema(description = "Specific problems, such as one entry per invalid field; empty when there are none",
-                example = "[\"amazonUrl: must be an https link to Amazon (amazon.com, amzn.to or a.co)\"]")
+                example = "[\"bookUrl: must be an https link to Amazon or Barnes & Noble (amazon.com, amzn.to, a.co, barnesandnoble.com or bn.com)\"]")
         List<String> details) {
 
     public static ApiError of(String error) {

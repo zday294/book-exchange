@@ -54,7 +54,7 @@ class CoverLookupTest extends AbstractIntegrationTest {
 
     private long submit(String name, String link) throws Exception {
         String body = json.writeValueAsString(Map.of("submitterName", name, "bookTitle", "T-" + name,
-                "amazonUrl", link, "wrappingPaper", "candy-cane"));
+                "bookUrl", link, "wrappingPaper", "candy-cane"));
         String response = mvc.perform(post("/api/exchanges/XMAS2026/books").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         return json.readTree(response).get("id").asLong();
@@ -74,6 +74,15 @@ class CoverLookupTest extends AbstractIntegrationTest {
             assertThat(row(id).get("cover_image_url")).isEqualTo(OL);
             assertThat(row(id).get("asin")).isEqualTo("054792822X");
         });
+    }
+
+    @Test
+    void aBarnesAndNobleLinkIsSavedWithoutAnyLookupForNow() throws Exception {
+        long id = submit("Zach", "https://www.barnesandnoble.com/w/the-hobbit/1100054405?ean=9780547928227");
+
+        Thread.sleep(500); // give the asynchronous lookup time to run
+        assertThat(row(id).get("cover_image_url")).isNull();
+        verifyNoInteractions(http); // not even a redirect is followed for another store's link
     }
 
     private static byte[] png(int width, int height) throws Exception {
