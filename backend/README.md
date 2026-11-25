@@ -21,6 +21,8 @@ cd backend
 | `DB_USER` / `DB_PASSWORD` | `bookexchange` / `bookexchange` | Local-dev credentials; set real ones elsewhere |
 | `PORT` | `8080` | HTTP port |
 | `BOOK_LINK_ALLOWED_HOSTS` | `amazon.com,amzn.to,a.co,barnesandnoble.com,bn.com` | Hosts a submitted book link may use: Amazon (`amazon.com`, `amzn.to`, `a.co`) or Barnes & Noble (`barnesandnoble.com`, `bn.com`); subdomains such as `www.amazon.com` are allowed too, lookalikes are not. Replaces `AMAZON_ALLOWED_HOSTS` |
+| `LINK_CHECK_ENABLED` | `true` | Opens each submitted book link to check the page exists (see "Link check"). Set `false` without internet or in tests |
+| `LINK_CHECK_CONNECT_TIMEOUT_MS` / `LINK_CHECK_TOTAL_TIMEOUT_MS` / `LINK_CHECK_MAX_REDIRECTS` | `2000` / `4000` / `5` | Limits for that check |
 | `SPRINGDOC_ENABLED` | `true` | Serves Swagger UI and the OpenAPI spec |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated browser origins allowed to call `/api/**` |
 
@@ -85,11 +87,12 @@ An exchange is in exactly one **mode**, and the two are exclusive (the backend e
 `POST /api/exchanges/{exchangeCode}/books`
 ```json
 { "submitterName": "Zach", "bookTitle": "The Hobbit",
-  "bookUrl": "https://www.amazon.com/dp/0547928221", "wrappingPaper": "candy-cane" }
+  "bookUrl": "https://www.amazon.com/dp/054792822X", "wrappingPaper": "candy-cane" }
 ```
 - `201 Created` with a `Location` header and the submitted book (`claimed: false`).
 - `400` for validation problems (all reported together), `404` unknown exchange, `409` if the exchange is closed or the same person (name, case-insensitive, ignoring surrounding spaces) already submitted a book to it. One book per person per exchange is enforced by a unique index; the same name can submit to a different exchange.
 - Wrapping paper keys: `candy-cane`, `snowflake`, `holly`, `stars`, `plaid`, `polka-dot`, `sugar-cookie`, `christmas-tree`, `fireplace`, `sleigh`.
+- The link is checked before saving (see "Link check"): a page the store says doesn't exist gives `400` with `details: ["bookUrl: That link doesn't seem to work (the page wasn't found). Check it and try again."]` and nothing is saved.
 - A cover lookup is triggered after the book is saved, off the request thread; its failure never affects the response (see "Cover lookup" below).
 
 ### List / get books
@@ -155,6 +158,14 @@ After a book is saved, `IsbnCoverLookup` runs in the background (`@Async`, after
 3. Otherwise (a non-book product such as `B08N5WRWNW`, no cover at the source, or any failure) `cover_image_url` stays empty and the page shows a placeholder with the title. Amazon's `og:image` is deliberately not used: it is blocked often and may breach their terms.
 
 The image's width and height are read from its header and only their ratio is kept (`cover_aspect_ratio`, rounded to two decimals, 0.10 to 10.00; an unreadable image just gets no ratio). When it is known a `book-shaped` live event goes out so open pages redraw the present. Added by migration `009-cover-aspect-ratio.sql`.
+
+### Link check
+When a book is submitted the server opens its link (`GuardedLinkChecker`) to see whether the page exists. **Only a definite "not found" (404 or 410) rejects the submission.** Everything else (success, 403, 429, 5xx, timeout, connection error, a redirect somewhere not allowed) leaves the link "unverified" and the book is accepted, because stores often block programs.
+- Order: the cheap checks first (exchange exists, open, accepting books, person hasn't submitted), then the link check, then the save. The check runs between two short transactions, so no transaction or lock is held while waiting for a store, and refused requests never cause a fetch.
+- `HEAD` is tried first; if the store refuses it or says 404, a `GET` confirms before the link is called dead (only the status and headers are read, never the page). Redirects are followed by hand (at most 5).
+- Safety, since the server fetches an address a person typed: every address visited (the link and each redirect) must be https, on the default port, without credentials and on an allowed host (`BOOK_LINK_ALLOWED_HOSTS`); the host must resolve only to public addresses (never loopback, private, link-local, metadata, carrier-grade NAT or IPv6 local ranges); the connection goes to the address that was checked (the TLS certificate is still verified against the host name), so a second DNS answer can't redirect it; connect timeout 2 s and 4 s overall; no cookies, no credentials, nothing about the participant, and an honest `User-Agent`.
+- Not done: re-checking links later, spotting "page not found" pages that answer 200, results caching. The cover lookup still has its own fetching code (and the DNS-rebinding gap noted there); moving it onto this pinned connection is a possible follow-up.
+- What the real stores return (checked on 2026-11-25): Amazon answers `HEAD` with `405` (so the `GET` fallback is essential) and a missing product with a real `404`; Barnes & Noble answers a missing product with `404` for both; `a.co` short links that don't exist give `404`. Note that Amazon links with a bad ISBN-10 check digit are genuine 404s, which is why the examples here use `054792822X`.
 
 ### Book links: Amazon and Barnes & Noble
 The submitted link (`bookUrl`, column `book_url`) must be `https`, with no credentials and the default port, on `amazon.com`, `amzn.to`, `a.co`, `barnesandnoble.com` or `bn.com` (or a subdomain such as `www.barnesandnoble.com`). The list is the `BOOK_LINK_ALLOWED_HOSTS` setting. The field was called `amazonUrl` (column `amazon_url`, setting `AMAZON_ALLOWED_HOSTS`) before; migration `010-rename-amazon-url-to-book-url.sql` renames the column and keeps existing links. Which store a link goes to is worked out by the front end from its host ("View on Barnes & Noble"); the API does not return it. The privacy rule is unchanged: only the claimer ever receives the link.

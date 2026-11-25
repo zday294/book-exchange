@@ -3,13 +3,13 @@ package com.bookexchange.cover;
 import java.util.List;
 import java.util.Locale;
 
-final class HostMatcher {
+public final class HostMatcher {
 
     private HostMatcher() {
     }
 
     /** True if the host equals an entry or is a subdomain of one ("amazon.com" allows "www.amazon.com", not "evilamazon.com"). */
-    static boolean matches(String host, List<String> allowed) {
+    public static boolean matches(String host, List<String> allowed) {
         if (host == null) {
             return false;
         }

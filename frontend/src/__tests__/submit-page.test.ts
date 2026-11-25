@@ -200,6 +200,7 @@ describe('submit page', () => {
       await fill(wrapper, { title: 'The Hobbit', url: URL, paper: 'holly' })
       await wrapper.get('[data-test=form]').trigger('submit')
       expect((wrapper.get('[data-test=submit]').element as HTMLButtonElement).disabled).toBe(true)
+      expect(wrapper.get('[data-test=submit]').text()).toBe('Checking the link…') // the server opens the link
       finish(json(created(), 201))
       await flushPromises()
       expect(wrapper.find('[data-test=success]').exists()).toBe(true)
@@ -236,6 +237,17 @@ describe('submit page', () => {
       )
       expect(document.activeElement).toBe(wrapper.get('#submitter').element)
       expect((wrapper.get('#title').element as HTMLInputElement).value).toBe('The Hobbit')
+    })
+
+    it('shows a dead-link message next to the link field, moves focus there and keeps what was typed', async () => {
+      const message = "bookUrl: That link doesn't seem to work (the page wasn't found). Check it and try again."
+      const { wrapper } = await submitWith(() => json({ error: 'Validation failed', details: [message] }, 400))
+      expect(wrapper.get('[data-test=error-bookUrl]').text()).toBe("That link doesn't seem to work (the page wasn't found). Check it and try again.")
+      expect(document.activeElement).toBe(wrapper.get('#url').element)
+      expect((wrapper.get('#url').element as HTMLInputElement).value).toBe(URL)
+      expect((wrapper.get('#title').element as HTMLInputElement).value).toBe('The Hobbit')
+      expect((wrapper.get('[data-test=submit]').element as HTMLButtonElement).disabled).toBe(false)
+      expect(wrapper.find('[data-test=success]').exists()).toBe(false)
     })
 
     it('shows other conflicts (such as a closed exchange) as a general message', async () => {

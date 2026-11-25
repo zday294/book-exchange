@@ -58,6 +58,13 @@ app:
   book-link:
     # Hosts a submitted book link may use (subdomains such as www.amazon.com are allowed too). Amazon: amazon.com, amzn.to, a.co. Barnes & Noble: barnesandnoble.com, bn.com.
     allowed-hosts: ${BOOK_LINK_ALLOWED_HOSTS:amazon.com,amzn.to,a.co,barnesandnoble.com,bn.com}
+  link-check:
+    # When a book is submitted, its link is opened to check the page exists; only a definite "not found"
+    # (404/410) rejects the submission. Switch off with LINK_CHECK_ENABLED=false (for example without internet).
+    enabled: ${LINK_CHECK_ENABLED:true}
+    connect-timeout-ms: ${LINK_CHECK_CONNECT_TIMEOUT_MS:2000}
+    total-timeout-ms: ${LINK_CHECK_TOTAL_TIMEOUT_MS:4000}
+    max-redirects: ${LINK_CHECK_MAX_REDIRECTS:5}
   cover:
     # Finds each book's cover after it is submitted (see backend/README.md). Switch off with COVER_LOOKUP_ENABLED=false.
     enabled: ${COVER_LOOKUP_ENABLED:true}

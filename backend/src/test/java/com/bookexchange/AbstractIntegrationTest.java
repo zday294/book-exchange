@@ -9,7 +9,8 @@ import org.springframework.test.context.TestPropertySource;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(PostgresTestConfig.class)
-// Tests never call the real cover source; the cover tests turn this back on with a stubbed CoverHttp.
-@TestPropertySource(properties = "app.cover.enabled=false")
+// Tests never call the internet: the real cover source and the real link check are off here. The tests for
+// those turn them back on with a stubbed CoverHttp / LinkChecker.
+@TestPropertySource(properties = {"app.cover.enabled=false", "app.link-check.enabled=false"})
 abstract class AbstractIntegrationTest {
 }

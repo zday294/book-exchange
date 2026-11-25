@@ -14,7 +14,7 @@ public record SubmitBookRequest(
         @Schema(description = "Title of the book. Hidden from other participants until the book is claimed.",
                 example = "The Hobbit")
         @NotBlank @Size(max = 300) String bookTitle,
-        @Schema(example = "https://www.amazon.com/dp/0547928221")
+        @Schema(example = "https://www.amazon.com/dp/054792822X")
         @NotBlank @Size(max = 2048) @BookUrl String bookUrl,
         @Schema(description = "Key of the wrapping paper design", example = "candy-cane")
         @NotBlank @Size(max = 50) @WrappingPaper String wrappingPaper) {
