@@ -38,9 +38,10 @@ public class BookSubmission {
     @Column(name = "book_url", nullable = false, length = 2048)
     private String bookUrl;
 
-    @Column(length = 20)
+    /** What the cover lookup recognised: an Amazon ASIN / ISBN-10, or a Barnes & Noble ISBN-13. */
+    @Column(name = "book_identifier", length = 20)
     @Setter
-    private String asin;
+    private String bookIdentifier;
 
     @Column(name = "cover_image_url", length = 2048)
     @Setter

@@ -36,14 +36,14 @@ public interface BookSubmissionRepository extends JpaRepository<BookSubmission, 
                          @org.springframework.data.repository.query.Param("name") String name,
                          @org.springframework.data.repository.query.Param("at") java.time.Instant at);
 
-    /** Records the product id and cover found by the lookup. Touches nothing else, so it can't undo a claim. */
+    /** Records the book identifier and cover found by the lookup. Touches nothing else, so it can't undo a claim. */
     @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
     @org.springframework.data.jpa.repository.Query(
-            "update BookSubmission b set b.asin = :asin, b.coverImageUrl = :coverUrl, "
+            "update BookSubmission b set b.bookIdentifier = :identifier, b.coverImageUrl = :coverUrl, "
                     + "b.coverAspectRatio = :ratio where b.id = :id")
     int updateCover(@org.springframework.data.repository.query.Param("id") Long id,
-                    @org.springframework.data.repository.query.Param("asin") String asin,
+                    @org.springframework.data.repository.query.Param("identifier") String identifier,
                     @org.springframework.data.repository.query.Param("coverUrl") String coverUrl,
                     @org.springframework.data.repository.query.Param("ratio") java.math.BigDecimal ratio);
 

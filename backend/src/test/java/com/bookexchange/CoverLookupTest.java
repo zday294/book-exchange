@@ -61,7 +61,7 @@ class CoverLookupTest extends AbstractIntegrationTest {
     }
 
     private Map<String, Object> row(long id) {
-        return jdbc.queryForMap("select asin, cover_image_url from book_submission where id = ?", id);
+        return jdbc.queryForMap("select book_identifier, cover_image_url from book_submission where id = ?", id);
     }
 
     @Test
@@ -72,17 +72,81 @@ class CoverLookupTest extends AbstractIntegrationTest {
 
         await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
             assertThat(row(id).get("cover_image_url")).isEqualTo(OL);
-            assertThat(row(id).get("asin")).isEqualTo("054792822X");
+            assertThat(row(id).get("book_identifier")).isEqualTo("054792822X");
         });
     }
 
+    private static final String BN = "https://www.barnesandnoble.com/w/the-hobbit-j-r-r-tolkien/1100054405?ean=9780547928227";
+    private static final String OL13 = "https://covers.openlibrary.org/b/isbn/9780547928227-L.jpg";
+
     @Test
-    void aBarnesAndNobleLinkIsSavedWithoutAnyLookupForNow() throws Exception {
-        long id = submit("Zach", "https://www.barnesandnoble.com/w/the-hobbit/1100054405?ean=9780547928227");
+    void aBarnesAndNobleLinkWithAnEanGetsItsCoverAndShape() throws Exception {
+        when(http.fetchImage(URI.create(OL13 + "?default=false"))).thenReturn(Optional.of(png(200, 300)));
+
+        long id = submit("Zach", BN);
+
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            assertThat(row(id).get("cover_image_url")).isEqualTo(OL13);
+            assertThat(row(id).get("book_identifier")).isEqualTo("9780547928227");
+            assertThat(jdbc.queryForObject("select cover_aspect_ratio from book_submission where id = ?", java.math.BigDecimal.class, id))
+                    .isEqualByComparingTo("0.67");
+        });
+        verify(http, never()).resolveShortLink(any()); // Barnes & Noble pages are never followed
+    }
+
+    @Test
+    void aBarnesAndNobleBookIsNotRevealedBeforeAClaimAndShowsItsCoverAfter() throws Exception {
+        when(http.fetchImage(any())).thenReturn(Optional.of(new byte[] {1}));
+        long id = submit("Zach", BN);
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(row(id).get("cover_image_url")).isEqualTo(OL13));
+
+        jdbc.update("update exchange set mode = 'CLAIM' where code = 'XMAS2026'");
+        try {
+            mvc.perform(get("/api/exchanges/XMAS2026/books"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].coverImageUrl").doesNotExist())
+                    .andExpect(jsonPath("$[0].bookIdentifier").doesNotExist())
+                    .andExpect(jsonPath("$[0].bookUrl").doesNotExist())
+                    .andExpect(jsonPath("$[0].bookTitle").doesNotExist());
+            mvc.perform(post("/api/exchanges/XMAS2026/books/{id}/claim", id)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"participantName\":\"Alex\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.coverImageUrl").value(OL13));
+        } finally {
+            jdbc.update("update exchange set mode = 'SUBMIT' where code = 'XMAS2026'");
+        }
+    }
+
+    @Test
+    void aBarnesAndNobleEanWithABadCheckDigitIsSavedWithoutAnyLookup() throws Exception {
+        long id = submit("Zach", "https://www.barnesandnoble.com/w/the-hobbit/1100054405?ean=9780547928228");
 
         Thread.sleep(500); // give the asynchronous lookup time to run
         assertThat(row(id).get("cover_image_url")).isNull();
-        verifyNoInteractions(http); // not even a redirect is followed for another store's link
+        assertThat(row(id).get("book_identifier")).isNull();
+        verifyNoInteractions(http);
+    }
+
+    @Test
+    void aBarnesAndNobleLinkWithoutAnEanIsNotFollowedAndGetsNoCover() throws Exception {
+        long id = submit("Zach", "https://www.barnesandnoble.com/w/the-hobbit/1100054405");
+        long short1 = submit("Zoe", "https://bn.com/some-short-form");
+
+        Thread.sleep(500);
+        assertThat(row(id).get("cover_image_url")).isNull();
+        assertThat(row(short1).get("cover_image_url")).isNull();
+        verifyNoInteractions(http); // not even a redirect is followed for Barnes & Noble
+    }
+
+    @Test
+    void noCoverAtTheSourceForABarnesAndNobleBookStillKeepsItsIsbn() throws Exception {
+        when(http.fetchImage(any())).thenReturn(Optional.empty());
+
+        long id = submit("Zach", BN);
+
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(row(id).get("book_identifier")).isEqualTo("9780547928227"));
+        assertThat(row(id).get("cover_image_url")).isNull();
     }
 
     private static byte[] png(int width, int height) throws Exception {
@@ -121,14 +185,14 @@ class CoverLookupTest extends AbstractIntegrationTest {
         long id = submit("Zach", "https://a.co/d/abc123");
 
         await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(row(id).get("cover_image_url")).isEqualTo(OL));
-        assertThat(row(id).get("asin")).isEqualTo("054792822X");
+        assertThat(row(id).get("book_identifier")).isEqualTo("054792822X");
     }
 
     @Test
-    void aNonBookProductKeepsItsAsinButGetsNoCoverAndNothingIsFetched() throws Exception {
+    void aNonBookProductKeepsItsIdentifierButGetsNoCoverAndNothingIsFetched() throws Exception {
         long id = submit("Zach", "https://www.amazon.com/dp/B08N5WRWNW");
 
-        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(row(id).get("asin")).isEqualTo("B08N5WRWNW"));
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(row(id).get("book_identifier")).isEqualTo("B08N5WRWNW"));
         assertThat(row(id).get("cover_image_url")).isNull();
         verify(http, never()).fetchImage(any());
     }
@@ -139,7 +203,7 @@ class CoverLookupTest extends AbstractIntegrationTest {
 
         long id = submit("Zach", "https://www.amazon.com/dp/054792822X");
 
-        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(row(id).get("asin")).isEqualTo("054792822X"));
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(row(id).get("book_identifier")).isEqualTo("054792822X"));
         assertThat(row(id).get("cover_image_url")).isNull();
     }
 
@@ -150,7 +214,7 @@ class CoverLookupTest extends AbstractIntegrationTest {
         long id = submit("Zach", "https://amzn.to/3xYz");
 
         await().during(Duration.ofMillis(500)).atMost(Duration.ofSeconds(3)).untilAsserted(() -> {
-            assertThat(row(id).get("asin")).isNull();
+            assertThat(row(id).get("book_identifier")).isNull();
             assertThat(row(id).get("cover_image_url")).isNull();
         });
     }
@@ -190,7 +254,7 @@ class CoverLookupTest extends AbstractIntegrationTest {
         lookup.resolveCover(sneaky.getId());
 
         verifyNoInteractions(http);
-        assertThat(row(sneaky.getId()).get("asin")).isNull();
+        assertThat(row(sneaky.getId()).get("book_identifier")).isNull();
     }
 
     @Test

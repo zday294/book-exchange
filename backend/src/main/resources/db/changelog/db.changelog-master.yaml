@@ -22,3 +22,5 @@ databaseChangeLog:
       file: db/changelog/changes/009-cover-aspect-ratio.sql
   - include:
       file: db/changelog/changes/010-rename-amazon-url-to-book-url.sql
+  - include:
+      file: db/changelog/changes/011-rename-asin-to-book-identifier.sql

@@ -35,7 +35,7 @@ class SchemaTest extends AbstractIntegrationTest {
     @Test
     void liquibaseRecordedEveryChangeset() {
         Integer applied = jdbc.queryForObject("SELECT count(*) FROM databasechangelog", Integer.class);
-        assertThat(applied).isEqualTo(11); // 001, 002, 003 (two), 004, 005, 006, 007, 008, 009, 010
+        assertThat(applied).isEqualTo(12); // 001, 002, 003 (two), 004, 005, 006, 007, 008, 009, 010, 011
     }
 
     @Test
