@@ -156,6 +156,8 @@ function connectLive() {
     },
     onBookShaped(e) {
       books.value = books.value.map((b) => (b.id === e.id ? { ...b, coverAspectRatio: e.coverAspectRatio } : b))
+      // A read that started before the ratio was saved may still land and put the old shape back: read again.
+      reconcileSoon()
     },
     onModeChanged(e) {
       if (exchange.value) exchange.value = { ...exchange.value, mode: e.mode }

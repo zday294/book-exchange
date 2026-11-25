@@ -22,8 +22,11 @@ public final class ImageShape {
     /** Width divided by height, rounded to two decimals; empty if unreadable or absurd. Never exposes pixel sizes. */
     public static Optional<BigDecimal> aspectRatio(byte[] image) {
         try (ImageInputStream in = ImageIO.createImageInputStream(new ByteArrayInputStream(image))) {
+            if (in == null) {
+                return Optional.empty();
+            }
             Iterator<ImageReader> readers = ImageIO.getImageReaders(in);
-            if (in == null || !readers.hasNext()) {
+            if (!readers.hasNext()) {
                 return Optional.empty();
             }
             ImageReader reader = readers.next();
