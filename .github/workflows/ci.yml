@@ -22,6 +22,8 @@ jobs:
     outputs:
       backend: ${{ steps.detect.outputs.backend }}
       frontend: ${{ steps.detect.outputs.frontend }}
+      docker: ${{ steps.detect.outputs.docker }}
+      database: ${{ steps.detect.outputs.database }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -36,7 +38,7 @@ jobs:
             .github/scripts/detect-changes.sh "$BASE" "$HEAD" | tee -a "$GITHUB_OUTPUT"
           else
             # Pushes to main always run everything.
-            printf 'backend=true\nfrontend=true\n' | tee -a "$GITHUB_OUTPUT"
+            printf 'backend=true\nfrontend=true\ndocker=true\ndatabase=true\n' | tee -a "$GITHUB_OUTPUT"
           fi
 
   backend:
@@ -74,7 +76,7 @@ jobs:
           if-no-files-found: ignore
 
   frontend:
-    name: Front end (type-check, test, build)
+    name: Front end (lint, type-check, test, build)
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
@@ -92,6 +94,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
       - name: Type-check
         run: npm run typecheck
       # Runs the Vue app tests and the Node server's tests (the server tests live in frontend/server).
@@ -124,11 +128,59 @@ jobs:
           fetch-depth: 0
       - run: .github/scripts/check-changelog.sh "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
 
+  # Builds both images (so a broken Dockerfile fails the pull request, not the next person's
+  # `docker compose up`), then starts the whole stack and checks it. Only runs when something that goes
+  # into an image changes (see detect-changes.sh). To reproduce locally: SMOKE_BUILD=true .github/scripts/smoke-test.sh
+  docker:
+    name: Docker images (build and smoke test)
+    needs: changes
+    if: needs.changes.outputs.docker == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # The images are tagged with the names docker compose expects for the project "book-exchange-smoke",
+      # so the smoke test can start them without building again. Layers are cached between runs.
+      - name: Build the backend image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: backend
+          load: true
+          tags: book-exchange-smoke-backend:latest
+          cache-from: type=gha,scope=backend-image
+          cache-to: type=gha,scope=backend-image,mode=max
+      - name: Build the front end image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: frontend
+          load: true
+          tags: book-exchange-smoke-frontend:latest
+          cache-from: type=gha,scope=frontend-image
+          cache-to: type=gha,scope=frontend-image,mode=max
+      - name: Start the stack and check it
+        run: .github/scripts/smoke-test.sh
+
+  # Applies the changelog from the base commit, then this pull request's on top, rolls the new changesets back
+  # (the schema must match the base exactly) and applies them again. To reproduce locally:
+  # .github/scripts/check-liquibase.sh <base-sha>
+  liquibase:
+    name: Liquibase upgrade and rollback
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.database == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - run: .github/scripts/check-liquibase.sh "${{ github.event.pull_request.base.sha }}"
+
   # The one check to require on main. Jobs skipped by the change detection count as fine, which
   # avoids the GitHub gotcha where a required check that was skipped blocks the merge forever.
   ci-result:
     name: CI result
-    needs: [changes, backend, frontend, changelog]
+    needs: [changes, backend, frontend, docker, liquibase, changelog]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

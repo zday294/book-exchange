@@ -33,6 +33,7 @@ What it does (`server/app.js`):
 ## Other commands
 ```bash
 npm test           # app tests (Vitest + jsdom) and server tests
+npm run lint       # ESLint (Vue + TypeScript rules for likely mistakes; no formatting rules). CI runs it before the tests
 npm run build      # type-check and build static files into dist/
 ```
 

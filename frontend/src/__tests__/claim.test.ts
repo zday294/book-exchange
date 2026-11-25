@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h, ref } from 'vue'
 import { createPinia } from 'pinia'
@@ -319,7 +319,6 @@ describe('claiming from the pile', () => {
 
 describe('claimability rules', () => {
   const open = true
-  const claimingOpen = true
   it('allows a stranger to claim an unclaimed present', () => {
     expect(claimability(sams, 'Alex', false, open, true)).toEqual({ state: 'claimable' })
   })

@@ -231,7 +231,7 @@ describe('party mode', () => {
       const server: Server = { exchange: baseExchange, party: partyOf(QUEUE) }
       const m = stubServer(server)
       const wrapper = await mountPage('Amy')
-      m.mockImplementation(async (url: string, init: Init) => {
+      m.mockImplementation(async (url: string) => {
         if (url.endsWith('/claim')) return json({ error: "That turn has just ended. Wait for the next one.", details: [] }, 409)
         if (url.endsWith('/party')) return json(partyOf([entry('Amy', 'WAITING'), entry('Bob', 'CURRENT')]))
         if (url.endsWith('/books')) return json(BOOKS)
