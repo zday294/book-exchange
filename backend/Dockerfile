@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Build: compile and package the Spring Boot jar (tests run in CI/locally, not here) ----
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /build
 COPY .mvn .mvn
 COPY mvnw pom.xml ./
@@ -11,7 +11,7 @@ COPY src src
 RUN ./mvnw -q -B -DskipTests package && mv target/*.jar app.jar
 
 # ---- Run: slim JRE, non-root ----
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 RUN useradd --system --uid 10001 --no-create-home app
 WORKDIR /app
 COPY --from=build /build/app.jar app.jar
