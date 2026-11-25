@@ -2,6 +2,8 @@ package com.bookexchange.cover;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.bookexchange.net.PinnedFetcher;
+import com.bookexchange.net.SocketTransport;
 import com.bookexchange.validation.BookLinkProperties;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -103,7 +105,11 @@ class GuardedCoverHttpTest {
         // Short links: "localhost" is the Amazon short-link host in this test; the redirect target is amazon.com
         // and is never fetched because the walk stops as soon as a URL contains an ASIN.
         BookLinkProperties amazon = new BookLinkProperties(List.of("localhost", "amazon.com"));
-        return new GuardedCoverHttp(props, amazon, new GuardedCoverHttp.Policy(false, a -> true));
+        // Test policy: plain http and loopback are allowed (a local server can't be reached any other way), and
+        // "localhost" is pinned to the loopback address the servers listen on.
+        var fetcher = new PinnedFetcher(new PinnedFetcher.Policy(false, a -> true), new SocketTransport(),
+                host -> host.equals("localhost") ? new InetAddress[] {InetAddress.getLoopbackAddress()} : InetAddress.getAllByName(host));
+        return new GuardedCoverHttp(props, amazon, fetcher);
     }
 
     @Test
@@ -181,16 +187,5 @@ class GuardedCoverHttpTest {
         }
         assertThat(http.resolveShortLink(URI.create("https://localhost/d/abc"))).isEmpty();
         assertThat(http.resolveShortLink(URI.create("https://evil.example/d/abc"))).isEmpty();
-    }
-
-    @Test
-    void publicAddressCheckRecognisesInternalRanges() throws Exception {
-        for (String internal : List.of("127.0.0.1", "10.1.2.3", "172.16.0.1", "192.168.0.9", "169.254.1.1", "0.0.0.0",
-                "100.64.0.1", "::1", "fe80::1", "fc00::1", "fd12:3456::1", "224.0.0.1")) {
-            assertThat(GuardedCoverHttp.isPublic(InetAddress.getByName(internal))).as(internal).isFalse();
-        }
-        for (String external : List.of("8.8.8.8", "151.101.1.1", "2606:4700:4700::1111")) {
-            assertThat(GuardedCoverHttp.isPublic(InetAddress.getByName(external))).as(external).isTrue();
-        }
     }
 }

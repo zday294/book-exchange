@@ -25,7 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 /** Going offline, with turns long enough (30 s) that only the offline rule, not the clock, can end a turn. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"app.link-check.enabled=false", "app.party.turn-seconds=30", "app.party.offline-grace-seconds=1", "app.party.tick-millis=150",
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"app.party.turn-seconds=30", "app.party.offline-grace-seconds=1", "app.party.tick-millis=150",
         "app.events.heartbeat-millis=150"})
 @AutoConfigureMockMvc
 @Import(PostgresTestConfig.class)
