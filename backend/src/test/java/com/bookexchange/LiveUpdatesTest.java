@@ -168,7 +168,7 @@ class LiveUpdatesTest {
     private long submit(String code, String who) throws Exception {
         return json.readTree(mvc.perform(post("/api/exchanges/{c}/books", code).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"submitterName\":\"" + who + "\",\"bookTitle\":\"Secret Title\","
-                                + "\"amazonUrl\":\"https://www.amazon.com/dp/0547928221\",\"wrappingPaper\":\"holly\"}"))
+                                + "\"bookUrl\":\"https://www.amazon.com/dp/0547928221\",\"wrappingPaper\":\"holly\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asLong();
     }
 
@@ -312,13 +312,13 @@ class LiveUpdatesTest {
         // a duplicate submission, a claim before claiming opens, and a submission after it closes: all 409
         mvc.perform(post("/api/exchanges/{c}/books", c.code()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"submitterName\":\"Zach\",\"bookTitle\":\"Again\","
-                        + "\"amazonUrl\":\"https://www.amazon.com/dp/1\",\"wrappingPaper\":\"holly\"}")).andExpect(status().isConflict());
+                        + "\"bookUrl\":\"https://www.amazon.com/dp/1\",\"wrappingPaper\":\"holly\"}")).andExpect(status().isConflict());
         mvc.perform(post("/api/exchanges/{c}/books/{id}/claim", c.code(), id).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"participantName\":\"Alex\"}")).andExpect(status().isConflict());
         switchTo(c, "CLAIM");
         mvc.perform(post("/api/exchanges/{c}/books", c.code()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"submitterName\":\"Late\",\"bookTitle\":\"X\","
-                        + "\"amazonUrl\":\"https://www.amazon.com/dp/1\",\"wrappingPaper\":\"holly\"}")).andExpect(status().isConflict());
+                        + "\"bookUrl\":\"https://www.amazon.com/dp/1\",\"wrappingPaper\":\"holly\"}")).andExpect(status().isConflict());
 
         // the only thing announced is the mode change that really happened
         assertThat(client.nextNamed("mode-changed")).isNotNull();

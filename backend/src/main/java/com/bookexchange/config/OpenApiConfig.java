@@ -1,8 +1,8 @@
 package com.bookexchange.config;
 
 import com.bookexchange.book.WrappingPapers;
-import com.bookexchange.validation.AmazonProperties;
-import com.bookexchange.validation.AmazonUrl;
+import com.bookexchange.validation.BookLinkProperties;
+import com.bookexchange.validation.BookUrl;
 import com.bookexchange.validation.WrappingPaper;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -34,7 +34,7 @@ public class OpenApiConfig {
 
     /** Lists the real allowed values for the custom constraints, so docs never drift from validation. */
     @Bean
-    public PropertyCustomizer customConstraintDocs(WrappingPapers papers, AmazonProperties amazon) {
+    public PropertyCustomizer customConstraintDocs(WrappingPapers papers, BookLinkProperties bookLinks) {
         return (Schema property, AnnotatedType type) -> {
             Annotation[] annotations = type.getCtxAnnotations();
             if (annotations == null) {
@@ -43,10 +43,10 @@ public class OpenApiConfig {
             if (Stream.of(annotations).anyMatch(a -> a instanceof WrappingPaper)) {
                 property.setEnum(new ArrayList<>(papers.keys()));
             }
-            if (Stream.of(annotations).anyMatch(a -> a instanceof AmazonUrl)) {
+            if (Stream.of(annotations).anyMatch(a -> a instanceof BookUrl)) {
                 property.setFormat("uri");
-                property.setDescription("An https link to Amazon. Allowed hosts: "
-                        + String.join(", ", amazon.allowedHosts())
+                property.setDescription("An https link to a book at Amazon or Barnes & Noble. Allowed hosts: "
+                        + String.join(", ", bookLinks.allowedHosts())
                         + " (subdomains such as www.amazon.com are allowed too).");
             }
             return property;

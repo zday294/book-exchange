@@ -1,6 +1,6 @@
 package com.bookexchange.cover;
 
-import com.bookexchange.validation.AmazonProperties;
+import com.bookexchange.validation.BookLinkProperties;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,18 +45,18 @@ public class GuardedCoverHttp implements CoverHttp {
     }
 
     private final CoverProperties props;
-    private final List<String> amazonHosts;
+    private final List<String> shortLinkHosts;
     private final Policy policy;
     private final HttpClient client;
 
     @Autowired
-    public GuardedCoverHttp(CoverProperties props, AmazonProperties amazon) {
-        this(props, amazon, Policy.PRODUCTION);
+    public GuardedCoverHttp(CoverProperties props, BookLinkProperties bookLinks) {
+        this(props, bookLinks, Policy.PRODUCTION);
     }
 
-    GuardedCoverHttp(CoverProperties props, AmazonProperties amazon, Policy policy) {
+    GuardedCoverHttp(CoverProperties props, BookLinkProperties bookLinks, Policy policy) {
         this.props = props;
-        this.amazonHosts = amazon.allowedHosts();
+        this.shortLinkHosts = bookLinks.allowedHosts();
         this.policy = policy;
         this.client = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NEVER) // redirects are followed by hand, with checks
@@ -66,7 +66,7 @@ public class GuardedCoverHttp implements CoverHttp {
 
     @Override
     public Optional<URI> resolveShortLink(URI shortLink) {
-        return follow(shortLink, amazonHosts, uri -> AsinParser.parse(uri).isPresent(), 0)
+        return follow(shortLink, shortLinkHosts, uri -> AsinParser.parse(uri).isPresent(), 0)
                 .filter(r -> r.uri() != null && AsinParser.parse(r.uri()).isPresent())
                 .map(Result::uri);
     }

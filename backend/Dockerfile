@@ -19,6 +19,6 @@ USER app
 # Size the heap from the container's memory limit instead of the host's.
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"
 # Listens on $PORT (default 8080). All other settings come from environment variables:
-# DB_URL, DB_USER, DB_PASSWORD, CORS_ALLOWED_ORIGINS, AMAZON_ALLOWED_HOSTS, SPRINGDOC_ENABLED.
+# DB_URL, DB_USER, DB_PASSWORD, CORS_ALLOWED_ORIGINS, BOOK_LINK_ALLOWED_HOSTS, SPRINGDOC_ENABLED.
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

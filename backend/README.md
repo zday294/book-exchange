@@ -20,7 +20,7 @@ cd backend
 | `DB_URL` | `jdbc:postgresql://localhost:5433/bookexchange` | JDBC URL |
 | `DB_USER` / `DB_PASSWORD` | `bookexchange` / `bookexchange` | Local-dev credentials; set real ones elsewhere |
 | `PORT` | `8080` | HTTP port |
-| `AMAZON_ALLOWED_HOSTS` | `amazon.com,amzn.to,a.co` | Hosts a submitted book link may use (subdomains such as `www.amazon.com` are allowed too) |
+| `BOOK_LINK_ALLOWED_HOSTS` | `amazon.com,amzn.to,a.co,barnesandnoble.com,bn.com` | Hosts a submitted book link may use: Amazon (`amazon.com`, `amzn.to`, `a.co`) or Barnes & Noble (`barnesandnoble.com`, `bn.com`); subdomains such as `www.amazon.com` are allowed too, lookalikes are not. Replaces `AMAZON_ALLOWED_HOSTS` |
 | `SPRINGDOC_ENABLED` | `true` | Serves Swagger UI and the OpenAPI spec |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated browser origins allowed to call `/api/**` |
 
@@ -85,7 +85,7 @@ An exchange is in exactly one **mode**, and the two are exclusive (the backend e
 `POST /api/exchanges/{exchangeCode}/books`
 ```json
 { "submitterName": "Zach", "bookTitle": "The Hobbit",
-  "amazonUrl": "https://www.amazon.com/dp/0547928221", "wrappingPaper": "candy-cane" }
+  "bookUrl": "https://www.amazon.com/dp/0547928221", "wrappingPaper": "candy-cane" }
 ```
 - `201 Created` with a `Location` header and the submitted book (`claimed: false`).
 - `400` for validation problems (all reported together), `404` unknown exchange, `409` if the exchange is closed or the same person (name, case-insensitive, ignoring surrounding spaces) already submitted a book to it. One book per person per exchange is enforced by a unique index; the same name can submit to a different exchange.
@@ -102,25 +102,25 @@ An exchange is in exactly one **mode**, and the two are exclusive (the backend e
 | `id`, `submitterName`, `wrappingPaper`, `claimed`, `viewerIsClaimer` | yes | yes | yes |
 | `coverAspectRatio` (cover width / height, two decimals, e.g. `0.67`; omitted until a cover is found) | **yes** | yes | yes |
 | `claimedByName`, `claimedAt`, `bookTitle`, `coverImageUrl` | no | yes | yes |
-| `amazonUrl` | no | **never** | yes |
+| `bookUrl` | no | **never** | yes |
 
 - **A deliberate exception to "an unclaimed book reveals nothing":** `coverAspectRatio` is sent for unclaimed books so presents can be drawn in the book's real proportions. It is one rounded number: never the image URL, the link, the title or pixel sizes (the cover's size could identify an edition). It does hint at the kind of book (paperback, hardcover, picture book); that is accepted. Tests assert that an unclaimed book exposes exactly the ratio and nothing else about the cover.
 - Claimer matching is case-insensitive. `404` for an unknown exchange, or a book that doesn't exist in that exchange.
 
 ### Claim a book
 `POST /api/exchanges/{exchangeCode}/books/{bookId}/claim` with `{ "participantName": "Alex" }`
-- `200` with the book in the **claimer's view** (title, cover, claimer, claim time and the Amazon link).
+- `200` with the book in the **claimer's view** (title, cover, claimer, claim time and the book link).
 - `400` blank/missing name, `404` unknown exchange or book.
 - `409` (nothing changes) if: the book is already claimed; the person already claimed a book in this exchange; the person submitted the book themselves; or the exchange is closed. Names are compared case-insensitively.
 - Race-safe: an atomic `UPDATE ... WHERE claimed_by_name IS NULL` decides who gets a contested book, and the partial unique index from #1 stops one person from winning two books. Losers get `409`.
-- A `BookClaimedEvent` (public view only: title, cover, claimer; never the Amazon link) is published for live updates (#15).
+- A `BookClaimedEvent` (public view only: title, cover, claimer; never the book link) is published for live updates (#15).
 
 ### API documentation (OpenAPI / Swagger)
 - Swagger UI: http://localhost:8080/swagger-ui.html (try requests against your local backend)
 - Spec: http://localhost:8080/v3/api-docs (JSON) or `/v3/api-docs.yaml`
 - Turn both off with `SPRINGDOC_ENABLED=false` (the deployed default is decided in the deployment issue).
 - **Every new endpoint documents itself** with springdoc annotations on the controller and DTOs: `@Operation` summary and description, an `@ApiResponse` for each status (error responses use the shared `ApiError` schema), and `@Schema` descriptions/examples on request and response fields. Bean Validation constraints show up automatically; `OpenApiDocsTest` checks the spec is valid.
-- Careful: documentation must never reveal hidden data. Unclaimed books' title/cover/claimer and the Amazon link (claimer only) must not appear in examples of responses to other viewers.
+- Careful: documentation must never reveal hidden data. Unclaimed books' title/cover/claimer and the book link (claimer only) must not appear in examples of responses to other viewers.
 
 ## Test it
 ```bash
@@ -150,11 +150,14 @@ All errors are JSON: `{ "error": "...", "details": [ ... ] }`. Unexpected errors
 ## Cover lookup
 After a book is saved, `IsbnCoverLookup` runs in the background (`@Async`, after the commit) and fills `book_submission.asin` and `cover_image_url`:
 
-1. The ASIN is read from the link (`/dp/`, `/gp/product/`, `/gp/aw/d/`, `/gp/offer-listing/`, `/exec/obidos/ASIN/`, `/product/`). For a short link (`a.co`, `amzn.to`) the redirects are followed until a URL with an ASIN appears; the Amazon product page itself is never downloaded.
+1. The ASIN is read from the link (`/dp/`, `/gp/product/`, `/gp/aw/d/`, `/gp/offer-listing/`, `/exec/obidos/ASIN/`, `/product/`). For a short link (`a.co`, `amzn.to`) the redirects are followed until a URL with an ASIN appears; the Amazon product page itself is never downloaded. Cover lookup only works for Amazon links for now: a Barnes & Noble link is accepted and kept, but no cover is looked up (its link carries an EAN/ISBN-13, which a later change can use), so the page shows the title placeholder.
 2. If the ASIN is a valid ISBN-10 (print books; checksum checked), the cover comes from Open Library (`https://covers.openlibrary.org/b/isbn/<isbn>-L.jpg`). The lookup only stores the URL after confirming the image really exists. The browser loads the image from Open Library.
 3. Otherwise (a non-book product such as `B08N5WRWNW`, no cover at the source, or any failure) `cover_image_url` stays empty and the page shows a placeholder with the title. Amazon's `og:image` is deliberately not used: it is blocked often and may breach their terms.
 
 The image's width and height are read from its header and only their ratio is kept (`cover_aspect_ratio`, rounded to two decimals, 0.10 to 10.00; an unreadable image just gets no ratio). When it is known a `book-shaped` live event goes out so open pages redraw the present. Added by migration `009-cover-aspect-ratio.sql`.
+
+### Book links: Amazon and Barnes & Noble
+The submitted link (`bookUrl`, column `book_url`) must be `https`, with no credentials and the default port, on `amazon.com`, `amzn.to`, `a.co`, `barnesandnoble.com` or `bn.com` (or a subdomain such as `www.barnesandnoble.com`). The list is the `BOOK_LINK_ALLOWED_HOSTS` setting. The field was called `amazonUrl` (column `amazon_url`, setting `AMAZON_ALLOWED_HOSTS`) before; migration `010-rename-amazon-url-to-book-url.sql` renames the column and keeps existing links. Which store a link goes to is worked out by the front end from its host ("View on Barnes & Noble"); the API does not return it. The privacy rule is unchanged: only the claimer ever receives the link.
 
 A failed lookup never affects the submission, and it records nothing else about the book. The cover is only revealed on claim (see the visibility table above).
 

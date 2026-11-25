@@ -111,7 +111,7 @@ class CreateExchangeTest extends AbstractIntegrationTest {
         String code = createdCode(valid());
         mvc.perform(post("/api/exchanges/{c}/books", code).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"submitterName\":\"Zach\",\"bookTitle\":\"The Hobbit\","
-                                + "\"amazonUrl\":\"https://www.amazon.com/dp/0547928221\","
+                                + "\"bookUrl\":\"https://www.amazon.com/dp/0547928221\","
                                 + "\"wrappingPaper\":\"candy-cane\"}"))
                 .andExpect(status().isCreated());
         mvc.perform(get("/api/exchanges/{c}", code)).andExpect(jsonPath("$.bookCount").value(1))
@@ -216,9 +216,9 @@ class CreateExchangeTest extends AbstractIntegrationTest {
     void getReturnsDetailsAndCounts() throws Exception {
         jdbc.update("delete from book_submission");
         Exchange ex = exchanges.save(new Exchange("COUNTS22", "Counts"));
-        jdbc.update("insert into book_submission (exchange_id, submitter_name, book_title, amazon_url, "
+        jdbc.update("insert into book_submission (exchange_id, submitter_name, book_title, book_url, "
                 + "wrapping_paper, claimed_by_name, claimed_at) values (?, 'A', 't', 'https://amazon.com/x', 'stars', 'B', now())", ex.getId());
-        jdbc.update("insert into book_submission (exchange_id, submitter_name, book_title, amazon_url, "
+        jdbc.update("insert into book_submission (exchange_id, submitter_name, book_title, book_url, "
                 + "wrapping_paper) values (?, 'C', 't', 'https://amazon.com/y', 'stars')", ex.getId());
 
         mvc.perform(get("/api/exchanges/COUNTS22")).andExpect(status().isOk())

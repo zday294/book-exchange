@@ -29,7 +29,7 @@ const takenByLee = book(4, 'Kim', {
 const wonByAlex = (id: number, submitter: string): Book => ({
   ...book(id, submitter), claimed: true, viewerIsClaimer: true, claimedByName: 'Alex',
   claimedAt: '2026-12-01T18:05:00Z', bookTitle: 'The Hobbit',
-  coverImageUrl: 'https://example.com/hobbit.jpg', amazonUrl: URL,
+  coverImageUrl: 'https://example.com/hobbit.jpg', bookUrl: URL,
 })
 
 function json(body: unknown, status = 200) {
@@ -223,7 +223,7 @@ describe('claiming from the pile', () => {
 
       expect(wrapper.find('[role=dialog]').exists()).toBe(false)
       expect(wrapper.get('[data-test=book-2] [data-test=taken]').text()).toContain('You claimed this')
-      expect(wrapper.get('[data-test=book-2] [data-test=amazon]').attributes('href')).toBe(URL)
+      expect(wrapper.get('[data-test=book-2] [data-test=book-link]').attributes('href')).toBe(URL)
       expect(wrapper.get('[data-test=my-status]').text()).toContain('you claimed The Hobbit')
     })
 

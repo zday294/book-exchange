@@ -10,14 +10,14 @@ import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.ElementType.RECORD_COMPONENT;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
-/** The value must be an https link to one of the configured Amazon hosts. */
+/** The value must be an https link to one of the configured book-store hosts (Amazon or Barnes & Noble). */
 @Documented
-@Constraint(validatedBy = AmazonUrlValidator.class)
+@Constraint(validatedBy = BookUrlValidator.class)
 @Target({FIELD, PARAMETER, RECORD_COMPONENT})
 @Retention(RUNTIME)
-public @interface AmazonUrl {
+public @interface BookUrl {
 
-    String message() default "must be an https link to Amazon (amazon.com, amzn.to or a.co)";
+    String message() default "must be an https link to Amazon or Barnes & Noble (amazon.com, amzn.to, a.co, barnesandnoble.com or bn.com)";
 
     Class<?>[] groups() default {};
 

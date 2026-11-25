@@ -217,7 +217,7 @@ describe('live updates on the exchange page', () => {
       expect(slot.get('[data-test=title]').text()).toBe('The Hobbit')
       expect(slot.get('[data-test=taken]').text()).toContain('Claimed by Lee')
       expect(slot.get('[data-test=cover]').attributes('src')).toBe('https://example.com/hobbit.jpg')
-      expect(slot.find('[data-test=amazon]').exists()).toBe(false)
+      expect(slot.find('[data-test=book-link]').exists()).toBe(false)
       expect(wrapper.get('[data-test=counts]').text()).toBe('2 presents · 1 taken')
       expect(wrapper.find('[data-test=book-1] [data-test=opened]').exists()).toBe(false) // the others stay wrapped
     })
@@ -240,27 +240,27 @@ describe('live updates on the exchange page', () => {
       stream().send('book-claimed', { id: 2, claimedByName: 'alex', claimedAt: 'x', bookTitle: 'The Hobbit' })
       await flushPromises()
       expect(wrapper.get('[data-test=book-2] [data-test=taken]').text()).toContain('You claimed this') // at once
-      expect(wrapper.find('[data-test=amazon]').exists()).toBe(false) // the event never carries the link
+      expect(wrapper.find('[data-test=book-link]').exists()).toBe(false) // the event never carries the link
 
       server.books = [{
         ...wrapped(2, 'Sam'), claimed: true, viewerIsClaimer: true, claimedByName: 'Alex', bookTitle: 'The Hobbit',
-        amazonUrl: 'https://www.amazon.com/dp/0547928221',
+        bookUrl: 'https://www.amazon.com/dp/0547928221',
       }]
       await settle()
-      expect(wrapper.get('[data-test=amazon]').attributes('href')).toBe('https://www.amazon.com/dp/0547928221')
+      expect(wrapper.get('[data-test=book-link]').attributes('href')).toBe('https://www.amazon.com/dp/0547928221')
     })
 
     it('does not undo my own claim (and its link) when its event arrives', async () => {
       const mine: Book = {
         ...wrapped(2, 'Sam'), claimed: true, viewerIsClaimer: true, claimedByName: 'Alex', bookTitle: 'The Hobbit',
-        amazonUrl: 'https://www.amazon.com/dp/0547928221',
+        bookUrl: 'https://www.amazon.com/dp/0547928221',
       }
       stubServer({ exchange: { ...exchange, mode: 'CLAIM' }, books: [mine] })
       const { wrapper } = await mountPage('Alex')
       stream().open()
       stream().send('book-claimed', { id: 2, claimedByName: 'Alex', claimedAt: 'x', bookTitle: 'The Hobbit' })
       await flushPromises()
-      expect(wrapper.find('[data-test=book-2] [data-test=amazon]').exists()).toBe(true)
+      expect(wrapper.find('[data-test=book-2] [data-test=book-link]').exists()).toBe(true)
       expect(wrapper.get('[data-test=counts]').text()).toBe('1 present · 1 taken') // counted once, not twice
     })
 

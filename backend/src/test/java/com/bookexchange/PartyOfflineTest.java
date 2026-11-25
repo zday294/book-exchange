@@ -81,7 +81,7 @@ class PartyOfflineTest {
         String token = created.get("hostToken").asText();
         for (String who : List.of("Zed", "Yan")) {
             mvc.perform(post("/api/exchanges/{c}/books", code).contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"submitterName\":\"" + who + "\",\"bookTitle\":\"T\",\"amazonUrl\":\"https://www.amazon.com/dp/1\","
+                    .content("{\"submitterName\":\"" + who + "\",\"bookTitle\":\"T\",\"bookUrl\":\"https://www.amazon.com/dp/1\","
                             + "\"wrappingPaper\":\"holly\"}")).andExpect(status().isCreated());
         }
         SseTestClient amy = online(code, "Amy");
@@ -123,7 +123,7 @@ class PartyOfflineTest {
         String code = created.get("code").asText();
         String token = created.get("hostToken").asText();
         mvc.perform(post("/api/exchanges/{c}/books", code).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"submitterName\":\"Zed\",\"bookTitle\":\"T\",\"amazonUrl\":\"https://www.amazon.com/dp/1\","
+                .content("{\"submitterName\":\"Zed\",\"bookTitle\":\"T\",\"bookUrl\":\"https://www.amazon.com/dp/1\","
                         + "\"wrappingPaper\":\"holly\"}")).andExpect(status().isCreated());
         online(code, "Amy");
         SseTestClient bob = online(code, "Bob");

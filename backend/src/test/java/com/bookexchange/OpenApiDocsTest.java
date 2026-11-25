@@ -54,7 +54,7 @@ class OpenApiDocsTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/exchanges/{exchangeCode}/books/{bookId}'].get.responses['200']").exists())
                 .andExpect(jsonPath("$.paths['/api/exchanges/{exchangeCode}/books/{bookId}'].get.responses['404']").exists())
                 .andExpect(jsonPath("$.paths['/api/exchanges/{exchangeCode}/books/{bookId}'].get.parameters[?(@.name=='X-Participant-Name')]").isNotEmpty())
-                .andExpect(jsonPath("$.components.schemas.BookView.properties.amazonUrl").exists());
+                .andExpect(jsonPath("$.components.schemas.BookView.properties.bookUrl").exists());
     }
 
     @Test
@@ -151,8 +151,8 @@ class OpenApiDocsTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.required.length()").value(4))
                 .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.properties.submitterName.maxLength").value(100))
                 .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.properties.bookTitle.maxLength").value(300))
-                .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.properties.amazonUrl.maxLength").value(2048))
-                .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.properties.amazonUrl.description")
+                .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.properties.bookUrl.maxLength").value(2048))
+                .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.properties.bookUrl.description")
                         .value(org.hamcrest.Matchers.containsString("amazon.com, amzn.to, a.co")))
                 .andExpect(jsonPath("$.components.schemas.SubmitBookRequest.properties.wrappingPaper.enum.length()")
                         .value(10))

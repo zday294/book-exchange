@@ -70,7 +70,7 @@ class RetrieveBooksTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.claimed").value(false))
                 .andExpect(jsonPath("$.viewerIsClaimer").value(false))
                 .andExpect(jsonPath("$.coverAspectRatio").value(0.67)); // the one cover fact that is public
-        assertNoneOf(r, "bookTitle", "coverImageUrl", "amazonUrl", "claimedByName", "claimedAt");
+        assertNoneOf(r, "bookTitle", "coverImageUrl", "bookUrl", "claimedByName", "claimedAt");
     }
 
     @Test
@@ -102,7 +102,7 @@ class RetrieveBooksTest extends AbstractIntegrationTest {
     void unclaimedBookRevealsNothingEvenToTheSubmitterOrAnyName() throws Exception {
         for (String viewer : new String[] {"Zach", "Alex", ""}) {
             assertNoneOf(getBook(unclaimed, viewer).andExpect(status().isOk()),
-                    "bookTitle", "coverImageUrl", "amazonUrl", "claimedByName", "claimedAt");
+                    "bookTitle", "coverImageUrl", "bookUrl", "claimedByName", "claimedAt");
         }
     }
 
@@ -116,7 +116,7 @@ class RetrieveBooksTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.coverImageUrl").value(COVER))
                     .andExpect(jsonPath("$.claimedByName").value("Alex"))
                     .andExpect(jsonPath("$.claimedAt").value("2026-12-01T18:02:11Z"));
-            assertNoneOf(r, "amazonUrl");
+            assertNoneOf(r, "bookUrl");
         }
     }
 
@@ -124,14 +124,14 @@ class RetrieveBooksTest extends AbstractIntegrationTest {
     void claimerAlsoSeesTheAmazonLink() throws Exception {
         getBook(claimed, "Alex").andExpect(status().isOk())
                 .andExpect(jsonPath("$.viewerIsClaimer").value(true))
-                .andExpect(jsonPath("$.amazonUrl").value(URL))
+                .andExpect(jsonPath("$.bookUrl").value(URL))
                 .andExpect(jsonPath("$.bookTitle").value("The Hobbit"))
                 .andExpect(jsonPath("$.coverImageUrl").value(COVER));
     }
 
     @Test
     void claimerMatchingIgnoresCaseAndSurroundingSpaces() throws Exception {
-        getBook(claimed, "  aLEX ").andExpect(jsonPath("$.amazonUrl").value(URL))
+        getBook(claimed, "  aLEX ").andExpect(jsonPath("$.bookUrl").value(URL))
                 .andExpect(jsonPath("$.viewerIsClaimer").value(true));
     }
 
@@ -150,9 +150,9 @@ class RetrieveBooksTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(unclaimed.getId()))
                 .andExpect(jsonPath("$[0].bookTitle").doesNotExist())
-                .andExpect(jsonPath("$[0].amazonUrl").doesNotExist())
+                .andExpect(jsonPath("$[0].bookUrl").doesNotExist())
                 .andExpect(jsonPath("$[1].id").value(claimed.getId()))
-                .andExpect(jsonPath("$[1].amazonUrl").value(URL));
+                .andExpect(jsonPath("$[1].bookUrl").value(URL));
     }
 
     @Test

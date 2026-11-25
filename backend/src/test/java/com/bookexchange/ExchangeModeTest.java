@@ -81,7 +81,7 @@ class ExchangeModeTest extends AbstractIntegrationTest {
     private ResultActions submit(String code, String who) throws Exception {
         return mvc.perform(post("/api/exchanges/{c}/books", code).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"submitterName\":\"" + who + "\",\"bookTitle\":\"The Hobbit\","
-                        + "\"amazonUrl\":\"https://www.amazon.com/dp/0547928221\",\"wrappingPaper\":\"holly\"}"));
+                        + "\"bookUrl\":\"https://www.amazon.com/dp/0547928221\",\"wrappingPaper\":\"holly\"}"));
     }
 
     private ResultActions claim(String code, long bookId, String who) throws Exception {

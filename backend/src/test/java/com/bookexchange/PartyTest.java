@@ -70,7 +70,7 @@ class PartyTest {
     private long book(Exchange e, String submitter) throws Exception {
         return json.readTree(mvc.perform(post("/api/exchanges/{c}/books", e.code()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"submitterName\":\"" + submitter + "\",\"bookTitle\":\"Secret " + submitter + "\","
-                                + "\"amazonUrl\":\"https://www.amazon.com/dp/0547928221\",\"wrappingPaper\":\"holly\"}"))
+                                + "\"bookUrl\":\"https://www.amazon.com/dp/0547928221\",\"wrappingPaper\":\"holly\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asLong();
     }
 
@@ -204,7 +204,7 @@ class PartyTest {
 
         assertThat(mode(e)).isEqualTo("PARTY");
         mvc.perform(post("/api/exchanges/{c}/books", e.code()).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"submitterName\":\"Late\",\"bookTitle\":\"X\",\"amazonUrl\":\"https://www.amazon.com/dp/1\","
+                .content("{\"submitterName\":\"Late\",\"bookTitle\":\"X\",\"bookUrl\":\"https://www.amazon.com/dp/1\","
                         + "\"wrappingPaper\":\"holly\"}")).andExpect(status().isConflict());
         host(e, "start").andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("A party is already running"));

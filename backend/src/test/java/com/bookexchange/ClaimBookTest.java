@@ -1,6 +1,7 @@
 package com.bookexchange;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -97,11 +98,32 @@ class ClaimBookTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.claimedAt").isNotEmpty())
                 .andExpect(jsonPath("$.bookTitle").value("The Hobbit"))
                 .andExpect(jsonPath("$.coverImageUrl").value("https://example.com/cover.jpg"))
-                .andExpect(jsonPath("$.amazonUrl").value(URL));
+                .andExpect(jsonPath("$.bookUrl").value(URL));
 
         BookSubmission saved = reload(b);
         assertThat(saved.getClaimedByName()).isEqualTo("Alex");
         assertThat(saved.getClaimedAt()).isNotNull();
+    }
+
+    @Test
+    void aBarnesAndNobleLinkIsHiddenUntilClaimedAndThenOnlyTheClaimerGetsIt() throws Exception {
+        String bn = "https://www.barnesandnoble.com/w/the-hobbit-j-r-r-tolkien/1100054405?ean=9780547928227";
+        BookSubmission b = new BookSubmission(exchange, "Zach", "The Hobbit", bn, "candy-cane");
+        b = books.save(b);
+
+        mvc.perform(get("/api/exchanges/CLAIMEX/books/{id}", b.getId()).header("X-Participant-Name", "Alex"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.claimed").value(false))
+                .andExpect(jsonPath("$.bookUrl").doesNotExist());
+
+        claim(b, "Alex").andExpect(status().isOk()).andExpect(jsonPath("$.bookUrl").value(bn));
+
+        mvc.perform(get("/api/exchanges/CLAIMEX/books/{id}", b.getId()).header("X-Participant-Name", "Sam"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.claimed").value(true))
+                .andExpect(jsonPath("$.bookUrl").doesNotExist());
+        mvc.perform(get("/api/exchanges/CLAIMEX/books/{id}", b.getId()))
+                .andExpect(jsonPath("$.bookUrl").doesNotExist());
     }
 
     @Test

@@ -55,9 +55,9 @@ app:
     offline-grace-seconds: ${PARTY_OFFLINE_GRACE_SECONDS:30}
     # How often the party timer looks at running parties.
     tick-millis: ${PARTY_TICK_MILLIS:1000}
-  amazon:
-    # Hosts a submitted book link may use (subdomains such as www.amazon.com are allowed too).
-    allowed-hosts: ${AMAZON_ALLOWED_HOSTS:amazon.com,amzn.to,a.co}
+  book-link:
+    # Hosts a submitted book link may use (subdomains such as www.amazon.com are allowed too). Amazon: amazon.com, amzn.to, a.co. Barnes & Noble: barnesandnoble.com, bn.com.
+    allowed-hosts: ${BOOK_LINK_ALLOWED_HOSTS:amazon.com,amzn.to,a.co,barnesandnoble.com,bn.com}
   cover:
     # Finds each book's cover after it is submitted (see backend/README.md). Switch off with COVER_LOOKUP_ENABLED=false.
     enabled: ${COVER_LOOKUP_ENABLED:true}

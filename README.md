@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/zday294/book-exchange/actions/workflows/ci.yml/badge.svg)](https://github.com/zday294/book-exchange/actions/workflows/ci.yml)
 
-A web app for running a Christmas book exchange. People submit a wrapped book (their name, the book's name, an Amazon link, and a wrapping paper). Everyone gathers around a tree with a pile of presents, and each person claims one. A claimed book reveals its title, cover and claimer; only the claimer ever sees the Amazon link.
+A web app for running a Christmas book exchange. People submit a wrapped book (their name, the book's name, a link to the book on Amazon or Barnes & Noble, and a wrapping paper). Everyone gathers around a tree with a pile of presents, and each person claims one. A claimed book reveals its title, cover and claimer; only the claimer ever sees the Amazon link.
 
 > **Status:** planning. The work is tracked as [GitHub issues](https://github.com/zday294/book-exchange/issues); only the database and backend scaffold exist so far.
 

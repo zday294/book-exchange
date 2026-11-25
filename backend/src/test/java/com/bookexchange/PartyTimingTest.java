@@ -66,7 +66,7 @@ class PartyTimingTest {
         Exchange e = new Exchange(n.get("code").asText(), n.get("hostToken").asText());
         for (String s : submitters) {
             mvc.perform(post("/api/exchanges/{c}/books", e.code()).contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"submitterName\":\"" + s + "\",\"bookTitle\":\"T\",\"amazonUrl\":\"https://www.amazon.com/dp/1\","
+                    .content("{\"submitterName\":\"" + s + "\",\"bookTitle\":\"T\",\"bookUrl\":\"https://www.amazon.com/dp/1\","
                             + "\"wrappingPaper\":\"holly\"}")).andExpect(status().isCreated());
         }
         return e;

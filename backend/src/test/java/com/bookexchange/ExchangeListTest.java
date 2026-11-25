@@ -48,7 +48,7 @@ class ExchangeListTest extends AbstractIntegrationTest {
     }
 
     private void book(String code, String submitter, String claimedBy) {
-        jdbc.update("insert into book_submission (exchange_id, submitter_name, book_title, amazon_url, wrapping_paper, "
+        jdbc.update("insert into book_submission (exchange_id, submitter_name, book_title, book_url, wrapping_paper, "
                         + "claimed_by_name, claimed_at) values ((select id from exchange where code = ?), ?, 't', "
                         + "'https://www.amazon.com/dp/1', 'stars', ?, case when ?::text is null then null else now() end)",
                 code, submitter, claimedBy, claimedBy);

@@ -10,8 +10,8 @@ import java.time.Instant;
  * are omitted from the JSON), so nothing secret is ever sent to the browser. The three cases:
  * <ul>
  *   <li>unclaimed: only id, submitter, wrapping paper, {@code claimed=false} and the cover's rounded aspect ratio;</li>
- *   <li>claimed, other viewer: plus claimer, claim time, title and cover (never the Amazon link);</li>
- *   <li>claimed, the claimer: all of the above plus the Amazon link.</li>
+ *   <li>claimed, other viewer: plus claimer, claim time, title and cover (never the book link);</li>
+ *   <li>claimed, the claimer: all of the above plus the book link.</li>
  * </ul>
  */
 @Schema(description = "A book in the pile, filtered for the viewer. Unclaimed books reveal nothing beyond who "
@@ -34,7 +34,7 @@ public record BookView(
         @Schema(description = "Claimed books only; omitted until a cover has been found",
                 example = "https://example.com/cover.jpg") String coverImageUrl,
         @Schema(description = "Only returned to the person who claimed the book",
-                example = "https://www.amazon.com/dp/0547928221") String amazonUrl) {
+                example = "https://www.amazon.com/dp/0547928221") String bookUrl) {
 
     /** Builds the view for {@code viewerName} (null/blank = anonymous). */
     public static BookView of(BookSubmission book, String viewerName) {
@@ -47,6 +47,6 @@ public record BookView(
         return new BookView(book.getId(), book.getSubmitterName(), book.getWrappingPaper(),
                 true, viewerIsClaimer, book.getCoverAspectRatio(), book.getClaimedByName(), book.getClaimedAt(),
                 book.getBookTitle(), book.getCoverImageUrl(),
-                viewerIsClaimer ? book.getAmazonUrl() : null);
+                viewerIsClaimer ? book.getBookUrl() : null);
     }
 }

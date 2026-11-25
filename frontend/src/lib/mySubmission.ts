@@ -6,7 +6,7 @@
  */
 export interface MySubmission {
   bookTitle: string
-  amazonUrl: string
+  bookUrl: string
 }
 
 const KEY = 'bookExchange.mySubmissions'
@@ -24,7 +24,11 @@ function readAll(): Record<string, MySubmission> {
 
 export function getMySubmission(exchangeCode: string, name: string): MySubmission | undefined {
   const s = readAll()[keyFor(exchangeCode, name)]
-  return s && typeof s.bookTitle === 'string' && typeof s.amazonUrl === 'string' ? s : undefined
+  if (!s || typeof s.bookTitle !== 'string') return undefined
+  // Browsers that saved a submission before the field was renamed have it as "amazonUrl".
+  const legacy = (s as unknown as { amazonUrl?: unknown }).amazonUrl
+  const bookUrl = typeof s.bookUrl === 'string' ? s.bookUrl : typeof legacy === 'string' ? legacy : undefined
+  return bookUrl === undefined ? undefined : { bookTitle: s.bookTitle, bookUrl }
 }
 
 export function saveMySubmission(exchangeCode: string, name: string, submission: MySubmission) {

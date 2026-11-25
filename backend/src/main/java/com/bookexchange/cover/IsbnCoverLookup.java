@@ -2,7 +2,7 @@ package com.bookexchange.cover;
 
 import com.bookexchange.domain.BookSubmission;
 import com.bookexchange.repository.BookSubmissionRepository;
-import com.bookexchange.validation.AmazonUrlValidator;
+import com.bookexchange.validation.BookUrlValidator;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.util.Optional;
@@ -31,19 +31,29 @@ public class IsbnCoverLookup implements CoverLookup {
 
     private final BookSubmissionRepository books;
     private final CoverHttp http;
-    private final AmazonUrlValidator amazonUrls;
+    private final BookUrlValidator bookUrls;
     private final CoverProperties props;
     private final TransactionTemplate transaction;
     private final ApplicationEventPublisher events;
 
-    public IsbnCoverLookup(BookSubmissionRepository books, CoverHttp http, AmazonUrlValidator amazonUrls,
+    public IsbnCoverLookup(BookSubmissionRepository books, CoverHttp http, BookUrlValidator bookUrls,
                            CoverProperties props, TransactionTemplate transaction, ApplicationEventPublisher events) {
         this.transaction = transaction;
         this.events = events;
         this.books = books;
         this.http = http;
-        this.amazonUrls = amazonUrls;
+        this.bookUrls = bookUrls;
         this.props = props;
+    }
+
+    /** Only Amazon's short links (a.co, amzn.to) hide an ASIN behind a redirect; other stores' links are not followed. */
+    private static boolean isAmazonShortLink(String link) {
+        String host = URI.create(link).getHost();
+        if (host == null) {
+            return false;
+        }
+        host = host.toLowerCase(java.util.Locale.ROOT);
+        return host.equals("a.co") || host.equals("amzn.to") || host.endsWith(".a.co") || host.endsWith(".amzn.to");
     }
 
     @Override
@@ -52,16 +62,16 @@ public class IsbnCoverLookup implements CoverLookup {
         if (found.isEmpty()) {
             return;
         }
-        String link = found.get().getAmazonUrl();
-        if (!amazonUrls.isAllowed(link)) {
+        String link = found.get().getBookUrl();
+        if (!bookUrls.isAllowed(link)) {
             return; // never fetch anything that is not on the allow-list
         }
         Optional<String> asin = AsinParser.parse(link);
-        if (asin.isEmpty()) {
+        if (asin.isEmpty() && isAmazonShortLink(link)) {
             asin = http.resolveShortLink(URI.create(link)).flatMap(AsinParser::parse);
         }
         if (asin.isEmpty()) {
-            log.info("Book {}: no ASIN found in its link", bookId);
+            log.info("Book {}: no ASIN found in its link (covers are only looked up for Amazon links for now)", bookId);
             return;
         }
         String coverUrl = null;

@@ -63,7 +63,7 @@ public class BookService {
             // Flush now so the unique index (the real guarantee) fires inside this method,
             // turning a simultaneous duplicate into the same 409 as the check above.
             book = books.saveAndFlush(new BookSubmission(exchange, request.submitterName(),
-                    request.bookTitle(), request.amazonUrl(), request.wrappingPaper()));
+                    request.bookTitle(), request.bookUrl(), request.wrappingPaper()));
         } catch (DataIntegrityViolationException e) {
             if (isOneSubmissionPerPersonViolation(e)) {
                 throw ApiException.conflict(ALREADY_SUBMITTED);
