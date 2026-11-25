@@ -52,7 +52,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiError> handleApiException(ApiException ex) {
         // Always JSON, even when the caller asked for something else (an event stream, for example).
         return ResponseEntity.status(ex.getStatus()).contentType(MediaType.APPLICATION_JSON)
-                .body(ApiError.of(ex.getMessage()));
+                .body(new ApiError(ex.getMessage(), ex.getDetails()));
     }
 
     @ExceptionHandler(Exception.class)

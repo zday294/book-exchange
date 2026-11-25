@@ -192,7 +192,7 @@ public class GuardedCoverHttp implements CoverHttp {
     }
 
     /** True for ordinary internet addresses; false for anything internal (loopback, private, link-local, etc.). */
-    static boolean isPublic(InetAddress a) {
+    public static boolean isPublic(InetAddress a) {
         if (a.isAnyLocalAddress() || a.isLoopbackAddress() || a.isLinkLocalAddress()
                 || a.isSiteLocalAddress() || a.isMulticastAddress()) {
             return false;

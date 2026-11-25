@@ -40,7 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * The heartbeat is fast and the connection cap small so those behaviours can be tested quickly.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"app.events.heartbeat-millis=300", "app.events.max-subscribers=8"})
+        properties = {"app.link-check.enabled=false", "app.events.heartbeat-millis=300", "app.events.max-subscribers=8"})
 @AutoConfigureMockMvc
 @Import(PostgresTestConfig.class)
 class LiveUpdatesTest {

@@ -46,14 +46,17 @@ public class BookController {
 
     @Operation(
             summary = "Submit a book to an exchange",
-            description = "Adds an unclaimed book to the exchange's pile. Each person may submit one book per exchange. A cover image is looked up "
+            description = "Adds an unclaimed book to the exchange's pile. Each person may submit one book per exchange. The link is opened first to check "
+                    + "the page exists (only a definite 404/410 rejects the book, see the 400 response). A cover image is looked up "
                     + "in the background after the book is saved; a failed lookup never affects this call.")
     @ApiResponse(responseCode = "201", description = "Book submitted",
             headers = @Header(name = "Location", description = "URL of the new book",
                     schema = @Schema(example = "http://localhost:8080/api/exchanges/XMAS2026/books/12")))
     @ApiResponse(responseCode = "400",
             description = "Validation failed (missing/blank fields, too long, bad link, unknown wrapping paper) "
-                    + "or the body isn't valid JSON. All validation problems are listed in `details`.",
+                    + "or the body isn't valid JSON. All validation problems are listed in `details`. A link whose page the store "
+                    + "says does not exist (404 or 410) is rejected as `bookUrl: That link doesn't seem to work ...`; links that "
+                    + "are merely blocked, slow or erroring are accepted unverified.",
             content = @Content(schema = @Schema(implementation = ApiError.class),
                     examples = @ExampleObject(value = ERR_400)))
     @ApiResponse(responseCode = "404", description = "No exchange with that code",

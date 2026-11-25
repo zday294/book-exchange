@@ -5,18 +5,28 @@ import com.bookexchange.domain.Exchange;
 import com.bookexchange.domain.ExchangeMode;
 import com.bookexchange.domain.ExchangeStatus;
 import com.bookexchange.error.ApiException;
+import com.bookexchange.link.LinkCheckProperties;
+import com.bookexchange.link.LinkChecker;
+import com.bookexchange.link.LinkStatus;
 import com.bookexchange.party.PartyService;
 import com.bookexchange.repository.BookSubmissionRepository;
 import com.bookexchange.repository.ExchangeRepository;
+import java.net.URI;
 import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class BookService {
 
+    private static final Logger log = LoggerFactory.getLogger(BookService.class);
+    static final String LINK_NOT_FOUND =
+            "That link doesn't seem to work (the page wasn't found). Check it and try again.";
     static final String ALREADY_SUBMITTED = "You have already submitted a book to this exchange";
     static final String BOOK_ALREADY_CLAIMED = "This book has already been claimed";
     static final String NOT_ACCEPTING_BOOKS =
@@ -32,31 +42,67 @@ public class BookService {
     private final BookSubmissionRepository books;
     private final ApplicationEventPublisher events;
     private final PartyService party;
+    private final LinkChecker linkChecker;
+    private final LinkCheckProperties linkCheck;
+    private final TransactionTemplate transaction;
 
     public BookService(ExchangeRepository exchanges, BookSubmissionRepository books,
-                       ApplicationEventPublisher events, PartyService party) {
+                       ApplicationEventPublisher events, PartyService party,
+                       LinkChecker linkChecker, LinkCheckProperties linkCheck, TransactionTemplate transaction) {
         this.exchanges = exchanges;
         this.books = books;
         this.events = events;
         this.party = party;
+        this.linkChecker = linkChecker;
+        this.linkCheck = linkCheck;
+        this.transaction = transaction;
     }
 
-    @Transactional
+    /**
+     * Saves a submitted book. Three steps, in this order: the cheap checks (exchange open, not already submitted),
+     * then opening the link to see it isn't a dead page, then the real save with the checks repeated. The slow
+     * network step sits between two short transactions, so no transaction or lock is held while waiting on a store.
+     */
     public BookSubmission submit(String exchangeCode, SubmitBookRequest request) {
-        // Share-lock the exchange for the whole transaction: if the host switches the mode at the same
-        // moment, one of the two waits for the other, so a book can never be saved after claiming began.
-        Exchange exchange = exchanges.findByCodeForShare(exchangeCode)
-                .orElseThrow(() -> ApiException.notFound("Exchange not found"));
+        if (linkCheck.enabled()) {
+            transaction.executeWithoutResult(status -> requireCanSubmit(exchanges.findByCode(exchangeCode)
+                    .orElseThrow(() -> ApiException.notFound("Exchange not found")), request));
+            requireLinkNotDead(request.bookUrl());
+        }
+        return transaction.execute(status -> save(exchangeCode, request));
+    }
+
+    private void requireLinkNotDead(String bookUrl) {
+        LinkStatus result;
+        try {
+            result = linkChecker.check(URI.create(bookUrl));
+        } catch (RuntimeException e) {
+            log.warn("Link check failed unexpectedly; letting the submission through", e);
+            result = LinkStatus.UNVERIFIED;
+        }
+        if (result == LinkStatus.NOT_FOUND) {
+            throw ApiException.invalidField("bookUrl", LINK_NOT_FOUND);
+        }
+    }
+
+    private void requireCanSubmit(Exchange exchange, SubmitBookRequest request) {
         if (exchange.getStatus() != ExchangeStatus.OPEN) {
             throw ApiException.conflict("This exchange is closed and no longer accepts books");
         }
         if (exchange.getMode() != ExchangeMode.SUBMIT) {
             throw ApiException.conflict(NOT_ACCEPTING_BOOKS);
         }
-
         if (books.existsByExchangeAndSubmitter(exchange.getId(), request.submitterName())) {
             throw ApiException.conflict(ALREADY_SUBMITTED);
         }
+    }
+
+    private BookSubmission save(String exchangeCode, SubmitBookRequest request) {
+        // Share-lock the exchange for the whole transaction: if the host switches the mode at the same
+        // moment, one of the two waits for the other, so a book can never be saved after claiming began.
+        Exchange exchange = exchanges.findByCodeForShare(exchangeCode)
+                .orElseThrow(() -> ApiException.notFound("Exchange not found"));
+        requireCanSubmit(exchange, request);
 
         BookSubmission book;
         try {

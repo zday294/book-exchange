@@ -190,7 +190,7 @@ async function submit() {
         aria-describedby="url-error url-hint"
         @input="clear('bookUrl')"
       />
-      <p id="url-hint" class="hint">Amazon or Barnes &amp; Noble. Only the person who claims the book will see this link.</p>
+      <p id="url-hint" class="hint">Amazon or Barnes &amp; Noble. We check that the link works. Only the person who claims the book will see this link.</p>
       <p id="url-error" class="error" data-test="error-bookUrl">{{ errors.bookUrl }}</p>
 
       <div id="paper-picker" tabindex="-1">
@@ -199,7 +199,7 @@ async function submit() {
       <p class="error" role="alert" data-test="error-wrappingPaper">{{ errors.wrappingPaper }}</p>
 
       <button type="submit" :disabled="submitting" data-test="submit">
-        {{ submitting ? 'Adding…' : 'Add my book' }}
+        {{ submitting ? 'Checking the link…' : 'Add my book' }}
       </button>
     </form>
     <p><RouterLink :to="{ name: 'exchange', params: { exchangeCode } }">Back to the exchange</RouterLink></p>

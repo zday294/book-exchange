@@ -34,7 +34,7 @@ public record BookView(
         @Schema(description = "Claimed books only; omitted until a cover has been found",
                 example = "https://example.com/cover.jpg") String coverImageUrl,
         @Schema(description = "Only returned to the person who claimed the book",
-                example = "https://www.amazon.com/dp/0547928221") String bookUrl) {
+                example = "https://www.amazon.com/dp/054792822X") String bookUrl) {
 
     /** Builds the view for {@code viewerName} (null/blank = anonymous). */
     public static BookView of(BookSubmission book, String viewerName) {

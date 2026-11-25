@@ -38,8 +38,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * The party, with real timing: short turns, a short offline grace period and a fast timer, with people "online"
  * through real live connections (that is how the server knows who is there).
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "app.party.turn-seconds=2", "app.party.offline-grace-seconds=1", "app.party.tick-millis=150",
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"app.link-check.enabled=false", "app.party.turn-seconds=2", "app.party.offline-grace-seconds=1", "app.party.tick-millis=150",
         "app.events.heartbeat-millis=150", "app.events.max-subscribers=200"})
 @AutoConfigureMockMvc
 @Import(PostgresTestConfig.class)
