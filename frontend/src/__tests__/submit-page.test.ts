@@ -18,10 +18,14 @@ function json(body: unknown, status = 200) {
 
 type Handler = (init: { method?: string; body?: string; headers: Record<string, string> }) => Response | Promise<Response>
 
-/** Serves the exchange on GET; `onSubmit` answers the POST. */
-function stubApi(onSubmit: Handler = () => json({}, 201), exchangeBody: unknown = exchange, exchangeStatus = 200) {
+/** Serves the exchange and the pile on GET; `onSubmit` answers the POST. `pile` may be a Response (a failure). */
+function stubApi(
+  onSubmit: Handler = () => json({}, 201), exchangeBody: unknown = exchange, exchangeStatus = 200,
+  pile: unknown = [],
+) {
   const fetchMock = vi.fn().mockImplementation(async (url: string, init: Parameters<Handler>[0]) => {
     if (init.method === 'POST') return onSubmit(init)
+    if (url.endsWith('/books')) return pile instanceof Response ? pile : json(pile)
     return json(exchangeBody, exchangeStatus)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -236,6 +240,67 @@ describe('submit page', () => {
       up = true
       await submit(wrapper)
       expect(wrapper.find('[data-test=success]').exists()).toBe(true)
+    })
+  })
+
+  describe('when this person has already submitted a book', () => {
+    const mine = { id: 4, submitterName: 'zach ', wrappingPaper: 'holly', claimed: false, viewerIsClaimer: false }
+    const theirs = { ...mine, id: 5, submitterName: 'Sam' }
+
+    it('shows a message and a link back instead of the form (names compared ignoring case and spaces)', async () => {
+      stubApi(undefined, exchange, 200, [theirs, mine])
+      const { wrapper } = await mountPage()
+      const card = wrapper.get('[data-test=already-submitted]')
+      expect(card.text()).toContain('You have already submitted a book for this exchange')
+      expect(card.get('a').attributes('href')).toBe('/exchange/K7M2PXA')
+      expect(wrapper.find('[data-test=form]').exists()).toBe(false)
+    })
+
+    it("shows the form when only other people's books are in the pile", async () => {
+      stubApi(undefined, exchange, 200, [theirs])
+      const { wrapper } = await mountPage()
+      expect(wrapper.find('[data-test=form]').exists()).toBe(true)
+      expect(wrapper.find('[data-test=already-submitted]').exists()).toBe(false)
+    })
+
+    it('shows the form, with the new name, after switching to a name that has not submitted', async () => {
+      stubApi(undefined, exchange, 200, [mine])
+      const { wrapper } = await mountPage()
+      expect(wrapper.find('[data-test=already-submitted]').exists()).toBe(true)
+
+      await wrapper.get('[data-test=change-name]').trigger('click')
+      await wrapper.get('[data-test=name-dialog] input').setValue('Pat')
+      await wrapper.get('[data-test=name-dialog] form').trigger('submit')
+      await flushPromises()
+
+      expect(wrapper.find('[data-test=already-submitted]').exists()).toBe(false)
+      expect((wrapper.get('#submitter').element as HTMLInputElement).value).toBe('Pat')
+    })
+
+    it('shows the loading state, not the form, until the pile has been read', async () => {
+      let answerPile: (r: Response) => void = () => {}
+      vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) =>
+        url.endsWith('/books') ? new Promise<Response>((resolve) => (answerPile = resolve)) : Promise.resolve(json(exchange)),
+      ))
+      const { wrapper } = await mountPage()
+      expect(wrapper.find('[data-test=loading]').exists()).toBe(true)
+      expect(wrapper.find('[data-test=form]').exists()).toBe(false)
+
+      answerPile(json([mine]))
+      await flushPromises()
+      expect(wrapper.find('[data-test=already-submitted]').exists()).toBe(true)
+    })
+
+    it('falls back to the form when the pile cannot be read', async () => {
+      stubApi(undefined, exchange, 200, json({ error: 'Server error', details: [] }, 500))
+      const { wrapper } = await mountPage()
+      expect(wrapper.find('[data-test=form]').exists()).toBe(true)
+    })
+
+    it('falls back to the form when the pile is not a list', async () => {
+      stubApi(undefined, exchange, 200, { unexpected: true })
+      const { wrapper } = await mountPage()
+      expect(wrapper.find('[data-test=form]').exists()).toBe(true)
     })
   })
 

@@ -264,6 +264,18 @@ describe('live updates on the exchange page', () => {
       expect(wrapper.get('[data-test=counts]').text()).toBe('1 present · 1 taken') // counted once, not twice
     })
 
+    it('stops offering "Add a book" when my own book arrives (say, from another tab)', async () => {
+      stubServer({ exchange, books: [wrapped(1, 'Zach')] })
+      const { wrapper } = await mountPage('Alex')
+      stream().open()
+      expect(wrapper.find('[data-test=add-book]').exists()).toBe(true)
+
+      stream().send('book-added', { id: 2, submitterName: 'alex', wrappingPaper: 'plaid' })
+      await flushPromises()
+
+      expect(wrapper.find('[data-test=add-book]').exists()).toBe(false)
+    })
+
     it('follows a change of mode', async () => {
       stubServer({ exchange, books: [wrapped(1, 'Zach')] })
       const { wrapper } = await mountPage()

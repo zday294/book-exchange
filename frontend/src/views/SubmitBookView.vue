@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ApiError } from '../api/client'
-import { submitBook, type SubmittedBook } from '../api/books'
+import { getBooks, submitBook, type Book, type SubmittedBook } from '../api/books'
 import { getExchange, type Exchange } from '../api/exchanges'
 import { saveMySubmission } from '../lib/mySubmission'
 import { validateSubmit, type SubmitErrors, type SubmitFields } from '../lib/submitValidation'
@@ -14,6 +14,8 @@ const participant = useParticipantStore()
 
 const load = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading')
 const exchange = ref<Exchange | null>(null)
+/** The pile, only to know whether this person has already brought a book. Null when it couldn't be read. */
+const pile = ref<Book[] | null>(null)
 
 const form = reactive<SubmitFields>({
   submitterName: participant.name, // prefilled from the saved name (#8); editable
@@ -21,6 +23,13 @@ const form = reactive<SubmitFields>({
   amazonUrl: '',
   wrappingPaper: '',
 })
+// Changing the name (header dialog) changes who is submitting, unless the field was edited by hand.
+watch(
+  () => participant.name,
+  (now, before) => {
+    if (form.submitterName.trim() === before.trim()) form.submitterName = now
+  },
+)
 const errors = ref<SubmitErrors>({})
 const formError = ref('')
 const submitting = ref(false)
@@ -36,13 +45,22 @@ const FIELD_IDS: Record<keyof SubmitFields, string> = {
 async function loadExchange() {
   load.value = 'loading'
   try {
-    exchange.value = await getExchange(props.exchangeCode)
+    // If the pile can't be read, the form is shown anyway: the server still allows only one book per person.
+    const [ex, list] = await Promise.all([getExchange(props.exchangeCode), getBooks(props.exchangeCode).catch(() => null)])
+    exchange.value = ex
+    pile.value = Array.isArray(list) ? list : null
     load.value = 'ready'
   } catch (e) {
     load.value = e instanceof ApiError && e.status === 404 ? 'notfound' : 'error'
   }
 }
 onMounted(loadExchange)
+
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+/** One book per person (#29): the current name already has a book in the pile. */
+const alreadySubmitted = computed(
+  () => !!participant.name.trim() && !!pile.value?.some((b) => sameName(b.submitterName, participant.name)),
+)
 
 /** Once something is fixed, its message goes away. */
 function clear(field: keyof SubmitFields) {
@@ -127,6 +145,12 @@ async function submit() {
     <RouterLink class="button" :to="{ name: 'exchange', params: { exchangeCode } }" data-test="to-exchange">
       See the pile
     </RouterLink>
+  </section>
+
+  <section v-else-if="exchange && alreadySubmitted" class="card" data-test="already-submitted">
+    <h1>{{ exchange.name }}</h1>
+    <p>You have already submitted a book for this exchange.</p>
+    <RouterLink class="button" :to="{ name: 'exchange', params: { exchangeCode } }">Back to the exchange</RouterLink>
   </section>
 
   <template v-else-if="exchange">
