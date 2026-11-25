@@ -2,21 +2,27 @@
 
 [![CI](https://github.com/zday294/book-exchange/actions/workflows/ci.yml/badge.svg)](https://github.com/zday294/book-exchange/actions/workflows/ci.yml)
 
-A web app for running a Christmas book exchange. People submit a wrapped book (their name, the book's name, a link to the book on Amazon or Barnes & Noble, and a wrapping paper). Everyone gathers around a tree with a pile of presents, and each person claims one. A claimed book reveals its title, cover and claimer; only the claimer ever sees the Amazon link.
+A web app for running a Christmas book exchange. People submit a wrapped book (their name, the book's name, a link to the book on Amazon or Barnes & Noble, and a wrapping paper). Everyone gathers around a tree with a pile of presents, and each person claims one. A claimed book reveals its title, cover and claimer; only the claimer ever sees the link.
 
-> **Status:** planning. The work is tracked as [GitHub issues](https://github.com/zday294/book-exchange/issues); only the database and backend scaffold exist so far.
+> **Status:** working locally, not deployed yet. The app runs end to end with `docker compose up --build` (see below). Deployment to Google Cloud is still being planned (#20 to #23); the rest of the work is tracked as [GitHub issues](https://github.com/zday294/book-exchange/issues).
+
+## What it does
+- A host creates an exchange and shares its code. People join by name only (no accounts yet).
+- **Submit mode:** each person submits one wrapped book: the title, a link to it on Amazon or Barnes & Noble (checked when submitted: a dead link is refused), and a wrapping paper. The server looks up the cover in the background, and presents take the book's shape.
+- **Claim mode:** everyone gathers around the tree and each person claims one present. An unclaimed present reveals nothing (no title, cover, link or submitter); a claimed one shows its title, cover and claimer, and only the claimer is given the link.
+- **Party mode:** optionally the host runs claiming as a queue of timed turns.
+- Open pages update live as people submit and claim.
 
 ## Stack
 - **Backend:** Java 21, Spring Boot, Liquibase for schema changes
 - **Front end:** Vue 3, served by its own Node.js server
 - **Database:** PostgreSQL
-- **Hosting (planned):** Google Cloud (Cloud Run, Cloud SQL)
+- **Hosting (planned):** Google Cloud (Cloud Run, Cloud SQL); infrastructure code will live in `infra/` when it exists
 
-## Repository layout (planned)
+## Repository layout
 ```
 backend/    Spring Boot API
 frontend/   Vue app and its Node.js server
-infra/      Infrastructure as code
 .github/    Workflows and templates
 ```
 
