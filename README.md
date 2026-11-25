@@ -64,7 +64,7 @@ Every pull request (and every push to `main`) is built and tested by GitHub Acti
 
 Changes to the workflows or `.github/scripts/` re-run everything; pushes to `main` always run everything. Test reports are kept as run artifacts for 7 days, and the job summary shows the test counts. To run the same checks locally: `cd backend && ./mvnw verify` and `cd frontend && npm ci && npm run typecheck && npm test && npm run build`.
 
-Dependabot (`.github/dependabot.yml`) opens weekly pull requests for Maven, npm, GitHub Actions and Docker updates (minor and patch updates grouped). The actions in the workflow are pinned to commit SHAs, which Dependabot keeps current.
+Dependabot (`.github/dependabot.yml`) opens weekly pull requests for Maven, npm, GitHub Actions and Docker updates (minor and patch updates grouped). Major-version updates for Maven, npm and Docker are deliberately not proposed, so the project stays on Spring Boot 3, Java 21, Vite 7 and so on until someone upgrades by hand; GitHub Actions majors are still proposed. Security updates are unaffected. The actions in the workflow are pinned to commit SHAs, which Dependabot keeps current.
 
 **Requiring the checks:** in the repository's branch protection for `main`, require the status check named **CI result**. That single check is enough: it covers all the jobs above, even when the change detection skips some.
 
