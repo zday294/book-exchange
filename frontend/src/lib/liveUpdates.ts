@@ -14,6 +14,11 @@ export interface BookClaimed {
   bookTitle: string
   coverImageUrl?: string
 }
+/** A present's shape became known (the cover was found). Only the proportions, nothing else about the book. */
+export interface BookShaped {
+  id: number
+  coverAspectRatio: number
+}
 export interface ModeChanged {
   mode: 'SUBMIT' | 'CLAIM' | 'PARTY'
 }
@@ -21,6 +26,7 @@ export interface ModeChanged {
 export interface LiveHandlers {
   onBookAdded(event: BookAdded): void
   onBookClaimed(event: BookClaimed): void
+  onBookShaped(event: BookShaped): void
   onModeChanged(event: ModeChanged): void
   /** The party queue changed (a snapshot of the whole queue). */
   onPartyChanged(state: PartyState): void
@@ -110,6 +116,9 @@ export function openLiveUpdates(
 
     listen<BookAdded>(es, 'book-added', handlers.onBookAdded)
     listen<BookClaimed>(es, 'book-claimed', handlers.onBookClaimed)
+    listen<BookShaped>(es, 'book-shaped', (e) => {
+      if (typeof e.coverAspectRatio === 'number') handlers.onBookShaped(e)
+    })
     listen<ModeChanged>(es, 'mode-changed', handlers.onModeChanged)
     listen<PartyState>(es, 'party-changed', (state) => {
       if (Array.isArray(state.queue)) handlers.onPartyChanged(state)

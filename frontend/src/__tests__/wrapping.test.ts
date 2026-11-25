@@ -54,6 +54,68 @@ describe('WrappedPresent', () => {
     expect(w.get('svg').attributes('aria-label')).toBe('Stars wrapped present for Alex')
   })
 
+  describe('book shape', () => {
+    const dims = (props: Record<string, unknown>) => {
+      const w = mount(WrappedPresent, { props: { paper: 'holly', tag: 'Zach', ...props } })
+      const rect = w.get('[data-test=book-shape]')
+      return { w, width: Number(rect.attributes('width')), height: Number(rect.attributes('height')) }
+    }
+
+    it.each([0.5, 0.67, 0.75, 1, 1.3, 1.6])('draws a rectangle in the proportions %s', (aspect) => {
+      const { width, height } = dims({ aspect })
+      expect(width / height).toBeCloseTo(aspect, 2)
+      expect(Math.max(width, height)).toBeLessThanOrEqual(164)
+    })
+
+    it('clamps extreme proportions to 0.5 - 1.6', () => {
+      const tall = dims({ aspect: 0.1 })
+      const wide = dims({ aspect: 5 })
+      expect(tall.width / tall.height).toBeCloseTo(0.5, 2)
+      expect(wide.width / wide.height).toBeCloseTo(1.6, 2)
+    })
+
+    it.each([undefined, null, 0, -1, NaN, Infinity])('uses a default book shape when the ratio is %s', (aspect) => {
+      const { width, height } = dims({ aspect })
+      expect(width / height).toBeCloseTo(0.67, 2)
+    })
+
+    it('puts the crossed ribbon and the bow in the middle of the book', () => {
+      const { w } = dims({ aspect: 0.67 })
+      const rects = w.findAll('rect')
+      const book = w.get('[data-test=book-shape]')
+      const cx = Number(book.attributes('x')) + Number(book.attributes('width')) / 2
+      const cy = Number(book.attributes('y')) + Number(book.attributes('height')) / 2
+      const vertical = rects.find((r) => Number(r.attributes('height')) === Number(book.attributes('height')) && r !== book && Number(r.attributes('width')) > 6 && Number(r.attributes('width')) < 30)!
+      expect(Number(vertical.attributes('x')) + Number(vertical.attributes('width')) / 2).toBeCloseTo(cx, 1)
+      expect(w.html()).toContain(`translate(${cx} ${cy + 4})`) // the bow
+    })
+
+    it.each([0.5, 0.67, 1, 1.6])('keeps the name tag on the book at %s, even with two lines', (aspect) => {
+      const { w } = dims({ aspect, tag: 'Bartholomew Jones' })
+      const book = w.get('[data-test=book-shape]')
+      const left = Number(book.attributes('x'))
+      const right = left + Number(book.attributes('width'))
+      const bottom = Number(book.attributes('y')) + Number(book.attributes('height'))
+      const m = /translate\(([\d.]+) ([\d.]+)\) rotate\(8\) scale\(([\d.]+)\)/.exec(w.get('[data-test=tag]').attributes('transform') ?? '')!
+      const [x, y, scale] = [Number(m[1]), Number(m[2]), Number(m[3])]
+      expect(x - 31 * scale).toBeGreaterThanOrEqual(left - 1)
+      expect(x + 31 * scale).toBeLessThanOrEqual(right + 6) // the tag may tilt a little past the edge
+      expect(y + 14 * scale).toBeLessThanOrEqual(bottom + 3)
+    })
+
+    it('describes the present the same way whatever its shape', () => {
+      const { w } = dims({ aspect: 1.3, paper: 'holly', tag: 'Alex' })
+      expect(w.get('svg').attributes('aria-label')).toBe('Holly wrapped present for Alex')
+    })
+
+    it.each(PAPER_KEYS)('renders the %s paper in a wide and a tall book', (key) => {
+      for (const aspect of [0.5, 1.6]) {
+        const w = mount(WrappedPresent, { props: { paper: key, tag: 'Alex', aspect } })
+        expect(w.html()).toContain('url(#' + w.find('pattern').attributes('id') + ')')
+      }
+    })
+  })
+
   it('shows no tag when none is given', () => {
     const w = mount(WrappedPresent, { props: { paper: 'stars' } })
     expect(w.find('text').exists()).toBe(false)

@@ -211,6 +211,27 @@ class LiveUpdatesTest {
         assertThat(m.data()).doesNotContain("Secret Title").doesNotContain("amazon");
     }
 
+    @Autowired org.springframework.context.ApplicationEventPublisher events;
+    @Autowired org.springframework.transaction.support.TransactionTemplate tx;
+
+    @Test
+    void whenACoverIsFoundEveryoneGetsTheBooksShapeAndNothingElse() throws Exception {
+        Created c = newExchange("Shaped");
+        SseClient client = new SseClient(c.code());
+        client.nextNamed("ready");
+
+        tx.executeWithoutResult(s -> events.publishEvent(
+                new com.bookexchange.cover.BookShapeKnownEvent(7L, c.code(), new java.math.BigDecimal("0.67"))));
+
+        SseClient.Message m = client.nextNamed("book-shaped");
+        JsonNode data = json.readTree(m.data());
+        assertThat(data.get("id").asLong()).isEqualTo(7L);
+        assertThat(data.get("coverAspectRatio").decimalValue()).isEqualByComparingTo("0.67");
+        List<String> fields = new ArrayList<>();
+        data.fieldNames().forEachRemaining(fields::add);
+        assertThat(fields).containsExactlyInAnyOrder("id", "coverAspectRatio");
+    }
+
     @Test
     void aClaimShowsWhatIsPublicAndNeverTheBookLink() throws Exception {
         Created c = newExchange("Claimed");

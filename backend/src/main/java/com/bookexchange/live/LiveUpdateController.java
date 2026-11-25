@@ -37,6 +37,8 @@ public class LiveUpdateController {
                     + "contain public information only, never a book link:\n\n"
                     + "- `ready`: the connection is open (sent immediately).\n"
                     + "- `book-added`: `{id, submitterName, wrappingPaper}`, a new wrapped present. Nothing about the book.\n"
+                    + "- `book-shaped`: `{id, coverAspectRatio}`, the cover lookup finished and the present's proportions are "
+                    + "now known (rounded width / height; nothing else about the cover).\n"
                     + "- `book-claimed`: `{id, claimedByName, claimedAt, bookTitle, coverImageUrl}`, a present was claimed "
                     + "(`coverImageUrl` is omitted when unknown).\n"
                     + "- `mode-changed`: `{mode}` (`SUBMIT`, `CLAIM` or `PARTY`).\n"

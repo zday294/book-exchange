@@ -139,6 +139,60 @@ describe('live updates on the exchange page', () => {
       expect(wrapper.get('[data-test=counts]').text()).toBe('2 presents · 0 taken')
     })
 
+    it('reshapes a present when its cover proportions become known (nothing else about the book)', async () => {
+      stubServer({ exchange, books: [wrapped(1, 'Zach')] })
+      const { wrapper } = await mountPage()
+      stream().open()
+      const widthOf = () => Number(wrapper.get('[data-test=book-1] [data-test=book-shape]').attributes('width'))
+      const before = widthOf()
+
+      stream().send('book-shaped', { id: 1, coverAspectRatio: 1.3 })
+      await flushPromises()
+
+      expect(widthOf()).toBeGreaterThan(before)
+      expect(wrapper.get('[data-test=book-1]').find('[data-test=opened]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('1.3')
+    })
+
+    it('keeps the new shape when an older read lands after the book-shaped event', async () => {
+      const server = { exchange, books: [wrapped(1, 'Zach')] }
+      const fetchMock = stubServer(server)
+      const { wrapper } = await mountPage()
+      stream().open()
+      const widthOf = () => Number(wrapper.get('[data-test=book-1] [data-test=book-shape]').attributes('width'))
+      const before = widthOf()
+
+      // A read starts before the ratio is saved, and is slow to answer.
+      let answerStale: (r: Response) => void = () => {}
+      fetchMock.mockImplementationOnce(async () => json(exchange))
+      fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => (answerStale = resolve)))
+      stream().send('book-added', { id: 1, submitterName: 'Zach', wrappingPaper: 'holly' }) // already there: no read
+      stream().drop()
+      stream().open() // reconnecting re-reads everything
+      await flushPromises()
+
+      server.books = [{ ...wrapped(1, 'Zach'), coverAspectRatio: 1.3 }]
+      stream().send('book-shaped', { id: 1, coverAspectRatio: 1.3 })
+      await flushPromises()
+      const reshaped = widthOf()
+      expect(reshaped).toBeGreaterThan(before)
+
+      answerStale(json([wrapped(1, 'Zach')])) // the old answer, without the ratio
+      await settle()
+
+      expect(widthOf()).toBe(reshaped)
+    })
+
+    it('ignores a book-shaped event without a number', async () => {
+      stubServer({ exchange, books: [wrapped(1, 'Zach')] })
+      const { wrapper } = await mountPage()
+      stream().open()
+      const before = wrapper.get('[data-test=book-1] [data-test=book-shape]').attributes('width')
+      stream().send('book-shaped', { id: 1, coverAspectRatio: 'wide' })
+      await flushPromises()
+      expect(wrapper.get('[data-test=book-1] [data-test=book-shape]').attributes('width')).toBe(before)
+    })
+
     it('does not show a present twice when it is already there', async () => {
       stubServer({ exchange, books: [wrapped(1, 'Zach')] })
       const { wrapper } = await mountPage()

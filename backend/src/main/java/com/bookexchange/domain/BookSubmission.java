@@ -46,6 +46,11 @@ public class BookSubmission {
     @Setter
     private String coverImageUrl;
 
+    /** Cover width / height rounded to 2 decimals; the only cover fact shown before a claim. */
+    @Column(name = "cover_aspect_ratio", precision = 4, scale = 2)
+    @Setter
+    private java.math.BigDecimal coverAspectRatio;
+
     @Column(name = "wrapping_paper", nullable = false, length = 50)
     private String wrappingPaper;
 

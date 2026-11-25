@@ -35,7 +35,7 @@ class SchemaTest extends AbstractIntegrationTest {
     @Test
     void liquibaseRecordedEveryChangeset() {
         Integer applied = jdbc.queryForObject("SELECT count(*) FROM databasechangelog", Integer.class);
-        assertThat(applied).isEqualTo(9); // 001, 002, 003 (two), 004, 005, 006, 007, 008
+        assertThat(applied).isEqualTo(10); // 001, 002, 003 (two), 004, 005, 006, 007, 008, 009
     }
 
     @Test
@@ -75,6 +75,19 @@ class SchemaTest extends AbstractIntegrationTest {
         jdbc.update("update exchange set mode = 'CLAIM' where id = ?", e.getId()); // fine
         jdbc.update("update exchange set mode = 'PARTY' where id = ?", e.getId()); // party mode exists now
         assertThatThrownBy(() -> jdbc.update("update exchange set mode = 'DANCE' where id = ?", e.getId()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void coverAspectRatioIsOptionalAndMustBeSensible() {
+        Exchange exchange = exchanges.save(new Exchange("RATIOCHK", "Ratio check"));
+        BookSubmission b = books.save(book(exchange, "Zach", "Shaped"));
+        assertThat(jdbc.queryForObject("select cover_aspect_ratio from book_submission where id = ?", java.math.BigDecimal.class, b.getId())).isNull();
+
+        jdbc.update("update book_submission set cover_aspect_ratio = 0.67 where id = ?", b.getId());
+        assertThatThrownBy(() -> jdbc.update("update book_submission set cover_aspect_ratio = 0 where id = ?", b.getId()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("update book_submission set cover_aspect_ratio = 50 where id = ?", b.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

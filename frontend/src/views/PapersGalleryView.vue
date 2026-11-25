@@ -14,6 +14,31 @@ const selected = ref('holly')
   <WrappingPaperPicker v-model="selected" />
   <p>Selected: <strong>{{ selected }}</strong></p>
 
+  <h2>Proportions</h2>
+  <p>Presents are drawn in the book's cover proportions (width / height), clamped to 0.5 to 1.6.</p>
+  <div class="edge" data-test="proportions">
+    <figure v-for="r in [0.5, 0.6, 0.67, 0.75, 1, 1.3, 1.6]" :key="r">
+      <WrappedPresent :paper="selected" tag="Zach" :aspect="r" />
+      <figcaption>{{ r }}</figcaption>
+    </figure>
+    <figure>
+      <WrappedPresent :paper="selected" tag="Bartholomew Jones" :aspect="0.5" />
+      <figcaption>0.5, two-line name</figcaption>
+    </figure>
+    <figure>
+      <WrappedPresent :paper="selected" tag="Zach" :aspect="0.1" />
+      <figcaption>0.1 (clamped)</figcaption>
+    </figure>
+    <figure>
+      <WrappedPresent :paper="selected" tag="Zach" :aspect="5" />
+      <figcaption>5 (clamped)</figcaption>
+    </figure>
+    <figure>
+      <WrappedPresent :paper="selected" tag="Zach" />
+      <figcaption>unknown (default)</figcaption>
+    </figure>
+  </div>
+
   <h2>Edge cases</h2>
   <div class="edge">
     <figure>

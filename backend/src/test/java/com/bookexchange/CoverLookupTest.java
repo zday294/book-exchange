@@ -76,6 +76,33 @@ class CoverLookupTest extends AbstractIntegrationTest {
         });
     }
 
+    private static byte[] png(int width, int height) throws Exception {
+        var out = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_RGB), "png", out);
+        return out.toByteArray();
+    }
+
+    @Test
+    void theCoversProportionsAreStoredRoundedAndNeverItsPixelSize() throws Exception {
+        when(http.fetchImage(any())).thenReturn(Optional.of(png(200, 300)));
+
+        long id = submit("Zach", "https://www.amazon.com/dp/054792822X");
+
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                assertThat(jdbc.queryForObject("select cover_aspect_ratio from book_submission where id = ?", java.math.BigDecimal.class, id))
+                        .isEqualByComparingTo("0.67"));
+    }
+
+    @Test
+    void anImageThatCantBeMeasuredStillGivesACoverJustNoRatio() throws Exception {
+        when(http.fetchImage(any())).thenReturn(Optional.of(new byte[] {1, 2, 3})); // not a picture
+
+        long id = submit("Zach", "https://www.amazon.com/dp/054792822X");
+
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(row(id).get("cover_image_url")).isEqualTo(OL));
+        assertThat(jdbc.queryForObject("select cover_aspect_ratio from book_submission where id = ?", java.math.BigDecimal.class, id)).isNull();
+    }
+
     @Test
     void aShortLinkIsFollowedToFindTheBook() throws Exception {
         when(http.resolveShortLink(URI.create("https://a.co/d/abc123")))
