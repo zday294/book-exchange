@@ -210,6 +210,8 @@ const myBook = computed(() => books.value.find((b) => b.viewerIsClaimer))
 const exchangeOpen = computed(() => exchange.value?.status === 'OPEN')
 
 const submitting = computed(() => exchangeOpen.value && exchange.value?.mode === 'SUBMIT')
+/** One book per person (#29): once the current name has a book in the pile, there is nothing more to add. */
+const canAddBook = computed(() => submitting.value && !mySubmittedBook.value)
 const inParty = computed(() => exchange.value?.mode === 'PARTY')
 const partyActive = computed(() => inParty.value && !!party.value?.active)
 
@@ -370,7 +372,9 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
     <p v-if="books.length === 0" class="empty card" data-test="empty">
       <template v-if="submitting">
         No presents yet — add one!
-        <RouterLink class="button" :to="{ name: 'submit-book', params: { exchangeCode } }">Add a book</RouterLink>
+        <RouterLink v-if="canAddBook" class="button" :to="{ name: 'submit-book', params: { exchangeCode } }" data-test="add-book"
+          >Add a book</RouterLink
+        >
       </template>
       <template v-else>No presents were brought to this exchange.</template>
     </p>
@@ -385,8 +389,8 @@ const claimedCount = computed(() => books.value.filter((b) => b.claimed).length)
           @claim="askToClaim"
         />
       </ul>
-      <p v-if="submitting" class="add">
-        <RouterLink :to="{ name: 'submit-book', params: { exchangeCode } }">Add a book</RouterLink>
+      <p v-if="canAddBook" class="add">
+        <RouterLink :to="{ name: 'submit-book', params: { exchangeCode } }" data-test="add-book">Add a book</RouterLink>
       </p>
     </template>
 

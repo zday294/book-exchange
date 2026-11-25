@@ -188,6 +188,65 @@ describe('exchange page', () => {
     })
   })
 
+  describe('"Add a book"', () => {
+    const fromMe: Book = { ...unclaimed, id: 4, submitterName: ' zach' }
+    const fromSam: Book = { ...unclaimed, id: 5, submitterName: 'Sam' }
+    const addLinks = (wrapper: Awaited<ReturnType<typeof mountPage>>['wrapper']) => wrapper.findAll('[data-test=add-book]')
+
+    it('is offered while I have not submitted a book', async () => {
+      stubApi([fromSam])
+      const { wrapper } = await mountPage()
+      expect(addLinks(wrapper)).toHaveLength(1)
+      expect(addLinks(wrapper)[0]!.attributes('href')).toBe('/exchange/K7M2PXA/submit')
+    })
+
+    it('is offered in the empty state', async () => {
+      stubApi([])
+      const { wrapper } = await mountPage()
+      expect(wrapper.get('[data-test=empty] [data-test=add-book]').text()).toBe('Add a book')
+    })
+
+    it('is not offered once I have a book in the pile (names compared ignoring case and spaces)', async () => {
+      stubApi([fromSam, fromMe])
+      const { wrapper } = await mountPage()
+      expect(addLinks(wrapper)).toHaveLength(0)
+      expect(wrapper.get('[data-test=my-status]').text()).toContain('you have submitted a book')
+    })
+
+    it('goes away without a reload when my book appears in the pile', async () => {
+      vi.useFakeTimers()
+      let pile = [fromSam]
+      stubApi(() => pile)
+      const { wrapper } = await mountPage()
+      expect(addLinks(wrapper)).toHaveLength(1)
+
+      pile = [fromSam, fromMe]
+      await vi.advanceTimersByTimeAsync(5100)
+      await flushPromises()
+      expect(addLinks(wrapper)).toHaveLength(0)
+    })
+
+    it('follows a change of name, in both directions', async () => {
+      stubApi([fromSam, fromMe])
+      const { wrapper, pinia } = await mountPage()
+      expect(addLinks(wrapper)).toHaveLength(0)
+
+      useParticipantStore(pinia).setName('Pat')
+      await flushPromises()
+      expect(addLinks(wrapper)).toHaveLength(1)
+
+      useParticipantStore(pinia).setName('ZACH')
+      await flushPromises()
+      expect(addLinks(wrapper)).toHaveLength(0)
+    })
+
+    it('is not offered outside submit mode, as before', async () => {
+      stubApi([fromSam], { mode: 'CLAIM' })
+      const { wrapper } = await mountPage()
+      expect(addLinks(wrapper)).toHaveLength(0)
+    })
+  })
+
   describe('wrapped presents', () => {
     it("are drawn in each book's cover proportions, and a default shape when unknown", async () => {
       stubApi([{ ...unclaimed, coverAspectRatio: 1.3 }, { ...unclaimed, id: 9, coverAspectRatio: undefined }])
